@@ -1,0 +1,12 @@
+[versions]
+kotlin = "1.8.21"
+androidGradlePlugin = "8.0.1"
+gradlePublish = "1.2.0"
+
+[libraries]
+# Android Gradle Api Plugin
+android-gradle-api = { group = "com.android.tools.build", name = "gradle-api", version.ref = "androidGradlePlugin" }
+
+[plugins]
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+gradle-publish = { id = "com.gradle.plugin-publish", version.ref = "gradlePublish" }
