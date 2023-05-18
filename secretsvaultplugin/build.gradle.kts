@@ -1,14 +1,17 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import io.gitlab.arturbosch.detekt.extensions.DetektExtension
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     id("com.gradle.plugin-publish")
+    id("io.gitlab.arturbosch.detekt")
     `kotlin-dsl`
     `maven-publish`
 }
 
 dependencies {
     compileOnly(libs.android.gradle.api)
+    detektPlugins(libs.bundles.detekt)
 }
 
 java {
@@ -35,6 +38,14 @@ gradlePlugin {
             tags.set(listOf("android", "keep", "hide", "secret", "key", "obfuscate"))
         }
     }
+}
+
+configure<DetektExtension> {
+    source = project.files("src/main/kotlin")
+    buildUponDefaultConfig = true
+    allRules = false
+    config = files("$rootDir/.detekt/config.yml")
+    baseline = file("$rootDir/.detekt/baseline.xml")
 }
 
 tasks.withType<Copy> {
