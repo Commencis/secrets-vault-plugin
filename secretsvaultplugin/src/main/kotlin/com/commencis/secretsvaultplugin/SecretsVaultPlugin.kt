@@ -9,6 +9,7 @@ import org.gradle.api.tasks.TaskAction
 // Tasks
 private const val TASK_GROUP = "Secrets Vault"
 private const val TASK_UNZIP_SECRETS_VAULT = "unzipSecretsVault"
+private const val TASK_KEEP_SECRETS_FROM_JSON_FILE = "keepSecrets"
 
 /**
  * Main class of the Secrets Vault Plugin.
@@ -48,6 +49,18 @@ internal class SecretsVaultPlugin : Plugin<Project> {
         ).apply {
             group = TASK_GROUP
             this.description = "Unzip secrets vault plugin into temp directory"
+        }
+
+        /**
+         * Create a gradle task to keep secrets from a json file.
+         */
+        project.tasks.create(
+            TASK_KEEP_SECRETS_FROM_JSON_FILE,
+            KeepSecretsTask::class.java,
+        ).apply {
+            group = TASK_GROUP
+            description = "Re-generate and obfuscate keys from json file and add it to your Android project"
+            dependsOn(TASK_UNZIP_SECRETS_VAULT)
         }
     }
 }
