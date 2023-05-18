@@ -5,12 +5,14 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 plugins {
     id("com.gradle.plugin-publish")
     id("io.gitlab.arturbosch.detekt")
+    id("org.jetbrains.kotlin.plugin.serialization")
     `kotlin-dsl`
     `maven-publish`
 }
 
 dependencies {
     compileOnly(libs.android.gradle.api)
+    implementation(libs.kotlinx.serialization.json)
     detektPlugins(libs.bundles.detekt)
 }
 

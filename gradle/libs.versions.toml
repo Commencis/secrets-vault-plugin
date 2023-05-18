@@ -3,16 +3,21 @@ kotlin = "1.8.21"
 androidGradlePlugin = "8.0.1"
 gradlePublish = "1.2.0"
 detekt = "1.22.0"
+kotlinxSerializationJson = "1.5.1"
 
 [libraries]
 # Android Gradle Api Plugin
 android-gradle-api = { group = "com.android.tools.build", name = "gradle-api", version.ref = "androidGradlePlugin" }
+
+# Kotlin
+kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerializationJson" }
 
 # Detekt plugins
 detekt-formating = { group = "io.gitlab.arturbosch.detekt", name = "detekt-formatting", version.ref = "detekt" }
 detekt-rules = { group = "io.gitlab.arturbosch.detekt", name = "detekt-rules", version.ref = "detekt" }
 
 [plugins]
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 gradle-publish = { id = "com.gradle.plugin-publish", version.ref = "gradlePublish" }
 detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
