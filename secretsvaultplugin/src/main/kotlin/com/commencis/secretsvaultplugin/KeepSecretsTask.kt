@@ -22,6 +22,8 @@ private const val SECRETS_CPP_FILE_NAME = "secrets.cpp"
 private const val C_MAKE_LISTS_FILE_NAME = "CMakeLists.txt"
 private const val MAIN_SOURCE_SET_NAME = "main"
 
+private const val OBFUSCATION_KEY_LENGTH = 32
+
 // Properties
 private const val PROP_OBFUSCATION_KEY = "obfuscationKey"
 private const val PROP_FILE_NAME = "fileName"
@@ -30,9 +32,6 @@ private const val PROP_PACKAGE_NAME = "packageName"
 
 // Sample usage
 private const val SAMPLE_FROM_PROPS = "-P$PROP_FILE_NAME=credentials.json"
-
-// Default key for XOR
-private const val DEFAULT_OBFUSCATION_KEY = "lbZJl6PavCGmfK2GtGh7yBj4XzzWBznx"
 
 // Ansi Colors
 private const val ANSI_COLOR_RESET = "\u001B[0m"
@@ -56,6 +55,22 @@ internal abstract class KeepSecretsTask : DefaultTask() {
      * Temporary folder for storing the secrets
      */
     private val tempFolder = "${project.buildDir}/secrets-vault-temp"
+
+    /**
+     * Retrieves or generates the obfuscation key.
+     * Checks if the project has the obfuscation key property.
+     * If the property exists, it will be used as the obfuscation key.
+     * Otherwise, a new obfuscation key is generated.
+     *
+     * @return The obfuscation key as a String.
+     */
+    private val obfuscationKey by lazy {
+        if (project.hasProperty(PROP_OBFUSCATION_KEY)) {
+            project.property(PROP_OBFUSCATION_KEY) as String
+        } else {
+            generateObfuscationKey()
+        }
+    }
 
     /**
      * The main task action which is responsible for keeping secrets
@@ -86,18 +101,6 @@ internal abstract class KeepSecretsTask : DefaultTask() {
         } else {
             val commonExtension = project.extensions.getByType(CommonExtension::class.java)
             (commonExtension as? ApplicationExtension)?.defaultConfig?.applicationId ?: ""
-        }
-    }
-
-    /**
-     * Get obfuscation key param from command line
-     * @return the obfuscation key
-     */
-    private fun getObfuscationKey(): String {
-        return if (project.hasProperty(PROP_OBFUSCATION_KEY)) {
-            project.property(PROP_OBFUSCATION_KEY) as String
-        } else {
-            DEFAULT_OBFUSCATION_KEY
         }
     }
 
@@ -205,10 +208,10 @@ internal abstract class KeepSecretsTask : DefaultTask() {
                     return@forEach
                 }
                 val appSignatures = getAppSignatures()?.map { appSignature ->
-                    Utils.encodeSecret(appSignature, getObfuscationKey())
+                    Utils.encodeSecret(appSignature, obfuscationKey)
                 }
                 var text = file.readText(Charset.defaultCharset())
-                text = text.replace(OBFUSCATION_KEY_PLACEHOLDER, getObfuscationKey())
+                text = text.replace(OBFUSCATION_KEY_PLACEHOLDER, obfuscationKey)
                     .replace(
                         CodeGenerator.CHECK_APP_SIGNATURE_PLACEHOLDER,
                         appSignatures?.let { appSignatureList ->
@@ -318,7 +321,7 @@ internal abstract class KeepSecretsTask : DefaultTask() {
         val secretsCpp = getCppDestination(flavour = flavour, fileName = SECRETS_CPP_FILE_NAME)
         secrets.forEach { secret ->
             val (key, value) = secret
-            val obfuscatedValue = Utils.encodeSecret(value, getObfuscationKey())
+            val obfuscatedValue = Utils.encodeSecret(value, obfuscationKey)
             val cppText = secretsCpp.readText(Charset.defaultCharset())
             if (cppText.contains(obfuscatedValue)) {
                 logWarning("Key already added in C++ !")
@@ -333,6 +336,21 @@ internal abstract class KeepSecretsTask : DefaultTask() {
             flavour,
             secretsPrefix,
         )
+    }
+
+    /**
+     * Generates a random alphanumeric string of length 32 for obfuscation purposes.
+     *
+     * This function creates a 32-character string that contains random alphanumeric
+     * characters (both lowercase and uppercase letters, and digits).
+     *
+     * @return A random alphanumeric string of length 32.
+     */
+    private fun generateObfuscationKey(): String {
+        val allowedChars = ('a'..'z') + ('A'..'Z') + ('0'..'9')
+        return (1..OBFUSCATION_KEY_LENGTH)
+            .map { allowedChars.random() }
+            .joinToString("")
     }
 
     /**
