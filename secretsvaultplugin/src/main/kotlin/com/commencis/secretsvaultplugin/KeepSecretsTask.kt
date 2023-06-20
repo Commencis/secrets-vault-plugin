@@ -2,6 +2,7 @@ package com.commencis.secretsvaultplugin
 
 import com.android.build.api.dsl.ApplicationExtension
 import com.android.build.api.dsl.CommonExtension
+import com.commencis.secretsvaultplugin.utils.CHECK_APP_SIGNATURE_PLACEHOLDER
 import com.commencis.secretsvaultplugin.utils.CodeGenerator
 import com.commencis.secretsvaultplugin.utils.Utils
 import com.commencis.secretsvaultplugin.utils.capitalize
@@ -71,6 +72,11 @@ internal abstract class KeepSecretsTask : DefaultTask() {
             generateObfuscationKey()
         }
     }
+
+    /**
+     * Lazily initialized instance of [CodeGenerator].
+     */
+    private val codeGenerator by lazy { CodeGenerator() }
 
     /**
      * The main task action which is responsible for keeping secrets
@@ -207,7 +213,7 @@ internal abstract class KeepSecretsTask : DefaultTask() {
             val appSignaturesCodeBlock = getAppSignatures()?.map { appSignature ->
                 Utils.encodeSecret(appSignature, obfuscationKey)
             }?.let { appSignatures ->
-                CodeGenerator.getAppSignatureCheck(appSignatures)
+                codeGenerator.getAppSignatureCheck(appSignatures)
             }.orEmpty()
             project.file("$tempFolder/cpp/").listFiles()?.forEach { file ->
                 if (file.name == C_MAKE_LISTS_FILE_NAME) {
@@ -215,7 +221,7 @@ internal abstract class KeepSecretsTask : DefaultTask() {
                 }
                 val text = file.readText(Charset.defaultCharset())
                     .replace(OBFUSCATION_KEY_PLACEHOLDER, obfuscationKey)
-                    .replace(CodeGenerator.CHECK_APP_SIGNATURE_PLACEHOLDER, appSignaturesCodeBlock)
+                    .replace(CHECK_APP_SIGNATURE_PLACEHOLDER, appSignaturesCodeBlock)
                 val destination = getCppDestination(flavor = flavor, fileName = file.name)
                 writeTextToFile(destination, text)
             }
@@ -242,7 +248,7 @@ internal abstract class KeepSecretsTask : DefaultTask() {
                     if (flavor == MAIN_SOURCE_SET_NAME) {
                         return@forEachIndexed
                     }
-                    textBuilder.append(CodeGenerator.getCMakeListsCode(flavor = flavor, index == 0))
+                    textBuilder.append(codeGenerator.getCMakeListsCode(flavor = flavor, index == 0))
                 }
                 if (flavors.size > 1) {
                     textBuilder.append("endif()\n")
@@ -302,7 +308,7 @@ internal abstract class KeepSecretsTask : DefaultTask() {
         // Append Kotlin code
         val kotlinText = secretsKotlin.readText(Charset.defaultCharset()).substringBeforeLast('}')
         secretsKotlin.writeText(kotlinText, Charset.defaultCharset())
-        secretsKotlin.appendText(secrets.joinToString("") { CodeGenerator.getKotlinCode(it.key) })
+        secretsKotlin.appendText(secrets.joinToString("") { codeGenerator.getKotlinCode(it.key) })
         secretsKotlin.appendText("}\n")
 
         // Append CPP code
@@ -322,7 +328,7 @@ internal abstract class KeepSecretsTask : DefaultTask() {
                 return@forEach
             }
             val cppKeyName = Utils.getCppName(key)
-            secretsCpp.appendText(CodeGenerator.getCppCode(kotlinPackage, cppKeyName, obfuscatedValue, flavor))
+            secretsCpp.appendText(codeGenerator.getCppCode(kotlinPackage, cppKeyName, obfuscatedValue, flavor))
         }
         val secretsPrefix = if (flavor == MAIN_SOURCE_SET_NAME) MAIN_SOURCE_SET_NAME.capitalize() else ""
         logSuccess(
