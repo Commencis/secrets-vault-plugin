@@ -43,7 +43,7 @@ private const val ANSI_COLOR_YELLOW = "\u001B[33m"
  * This task removes all previously secured secret keys in your project and
  * replaces them with obfuscated keys from the provided json file.
  */
-@Suppress("TooManyFunctions")
+@Suppress("TooManyFunctions", "UnnecessaryAbstractClass")
 internal abstract class KeepSecretsTask : DefaultTask() {
 
     /**
@@ -100,7 +100,7 @@ internal abstract class KeepSecretsTask : DefaultTask() {
             project.property(PROP_PACKAGE_NAME) as String
         } else {
             val commonExtension = project.extensions.getByType(CommonExtension::class.java)
-            (commonExtension as? ApplicationExtension)?.defaultConfig?.applicationId ?: ""
+            (commonExtension as? ApplicationExtension)?.defaultConfig?.applicationId.orEmpty()
         }
     }
 
@@ -171,7 +171,7 @@ internal abstract class KeepSecretsTask : DefaultTask() {
      * @return the destination file for the CPP code
      */
     private fun getCppDestination(flavor: String, fileName: String): File {
-        return project.file(SOURCE_SET_TEMPLATE.format(flavor, "cpp") + "$fileName")
+        return project.file(SOURCE_SET_TEMPLATE.format(flavor, "cpp") + fileName)
     }
 
     /**
@@ -184,8 +184,8 @@ internal abstract class KeepSecretsTask : DefaultTask() {
     private fun getKotlinDestination(flavor: String, fileName: String): File {
         val javaPath = SOURCE_SET_TEMPLATE.format(flavor, "java")
         val kotlinPath = SOURCE_SET_TEMPLATE.format(flavor, "kotlin")
-        val basePath = if (project.file(javaPath).exists()) javaPath else kotlinPath
-        val packagePath = getAppPackageName().split(".").joinToString(File.separator)
+        val basePath = javaPath.takeIf { project.file(javaPath).exists() } ?: kotlinPath
+        val packagePath = getAppPackageName().replace(".", File.separator)
         val fullPath = basePath + packagePath
 
         val directory = project.file(fullPath)
@@ -204,25 +204,20 @@ internal abstract class KeepSecretsTask : DefaultTask() {
      */
     private fun copyCppFiles(flavor: String) {
         runCatching {
+            val appSignaturesCodeBlock = getAppSignatures()?.map { appSignature ->
+                Utils.encodeSecret(appSignature, obfuscationKey)
+            }?.let { appSignatures ->
+                CodeGenerator.getAppSignatureCheck(appSignatures)
+            }.orEmpty()
             project.file("$tempFolder/cpp/").listFiles()?.forEach { file ->
                 if (file.name == C_MAKE_LISTS_FILE_NAME) {
                     return@forEach
                 }
-                val appSignatures = getAppSignatures()?.map { appSignature ->
-                    Utils.encodeSecret(appSignature, obfuscationKey)
-                }
-                var text = file.readText(Charset.defaultCharset())
-                text = text.replace(OBFUSCATION_KEY_PLACEHOLDER, obfuscationKey)
-                    .replace(
-                        CodeGenerator.CHECK_APP_SIGNATURE_PLACEHOLDER,
-                        appSignatures?.let { appSignatureList ->
-                            CodeGenerator.getAppSignatureCheck(appSignatureList)
-                        }.orEmpty()
-                    )
+                val text = file.readText(Charset.defaultCharset())
+                    .replace(OBFUSCATION_KEY_PLACEHOLDER, obfuscationKey)
+                    .replace(CodeGenerator.CHECK_APP_SIGNATURE_PLACEHOLDER, appSignaturesCodeBlock)
                 val destination = getCppDestination(flavor = flavor, fileName = file.name)
-                destination.parentFile?.takeIf { it.exists().not() }?.mkdirs()
-                destination.takeIf { it.exists().not() }?.createNewFile()
-                destination.writeText(text)
+                writeTextToFile(destination, text)
             }
         }.onFailure { throwable ->
             if (throwable is IOException) {
@@ -242,18 +237,18 @@ internal abstract class KeepSecretsTask : DefaultTask() {
                 if (file.name != C_MAKE_LISTS_FILE_NAME) {
                     return@forEach
                 }
-                var text = file.readText(Charset.defaultCharset())
+                val textBuilder = StringBuilder(file.readText(Charset.defaultCharset()))
                 flavors.forEachIndexed { index, flavor ->
-                    if (flavor == MAIN_SOURCE_SET_NAME) return@forEachIndexed
-                    text += CodeGenerator.getCMakeListsCode(flavor = flavor, index == 0)
+                    if (flavor == MAIN_SOURCE_SET_NAME) {
+                        return@forEachIndexed
+                    }
+                    textBuilder.append(CodeGenerator.getCMakeListsCode(flavor = flavor, index == 0))
                 }
                 if (flavors.size > 1) {
-                    text += "endif()\n"
+                    textBuilder.append("endif()\n")
                 }
                 val destination = getCppDestination(MAIN_SOURCE_SET_NAME, fileName = file.name)
-                destination.parentFile?.takeIf { it.exists().not() }?.mkdirs()
-                destination.takeIf { it.exists().not() }?.createNewFile()
-                destination.writeText(text)
+                writeTextToFile(destination, textBuilder.toString())
             }
         }.onFailure { throwable ->
             if (throwable is IOException) {
@@ -274,9 +269,7 @@ internal abstract class KeepSecretsTask : DefaultTask() {
                     flavor = flavor,
                     fileName = secretsFilePrefix.capitalize() + file.name,
                 )
-                destination.parentFile?.takeIf { it.exists().not() }?.mkdirs()
-                destination.takeIf { it.exists().not() }?.createNewFile()
-                destination.writeText(text)
+                writeTextToFile(destination, text)
             }
         }.onFailure { throwable ->
             if (throwable is IOException) {
@@ -352,6 +345,20 @@ internal abstract class KeepSecretsTask : DefaultTask() {
         return (1..OBFUSCATION_KEY_LENGTH)
             .map { allowedChars.random() }
             .joinToString("")
+    }
+
+    /**
+     * Writes the provided text to a file at the specified destination.
+     * If the file or its parent directories do not exist, they will be created.
+     *
+     * @param destination The [File] object representing the file where the text is to be written.
+     * @param text The [String] of text to be written to the file.
+     * @throws IOException If an I/O error occurred
+     */
+    private fun writeTextToFile(destination: File, text: String) {
+        destination.parentFile?.takeUnless { it.exists() }?.mkdirs()
+        destination.takeUnless { it.exists() }?.createNewFile()
+        destination.writeText(text)
     }
 
     /**
