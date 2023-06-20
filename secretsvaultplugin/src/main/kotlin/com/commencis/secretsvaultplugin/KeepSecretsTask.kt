@@ -55,7 +55,7 @@ internal abstract class KeepSecretsTask : DefaultTask() {
     /**
      * Temporary folder for storing the secrets
      */
-    private val tempFolder = "${project.buildDir}/secrets-vault-temp"
+    private val tempFolder = "${project.buildDir}/intermediates/secrets_vault_plugin"
 
     /**
      * Retrieves or generates the obfuscation key.
