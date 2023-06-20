@@ -8,7 +8,7 @@ The Secrets Vault Plugin employs multiple security-enhancing strategies, includi
 - **App Signature Check:** Performs an app signature check, which validates the authenticity of the application. This check prevents unauthorized access to the generated .so file, adding an additional layer of protection against tampering or unauthorized usage.
 - **Custom Encoding/Decoding Algorithm:** Providing an option for users to implement their own encoding/decoding algorithm, thereby introducing an additional layer of security.
 
-> Please remember that no client-side security measures are invincible. As a rule of thumb, **storing secrets in a mobile app is not considered best practice**. However, when there's no other option, this method is our best recommendation for concealing it.
+> Please remember that no client-side security measures are invincible. As a rule of thumb, **storing secrets in a mobile app is not considered best practice**. However, when there's no other option, this method is our best recommendation for concealing them.
 
 # 1) Getting started
 
