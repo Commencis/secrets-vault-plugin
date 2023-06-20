@@ -30,8 +30,8 @@ private const val PROP_FILE_NAME = "fileName"
 private const val PROP_APP_SIGNATURES = "appSignatures"
 private const val PROP_PACKAGE_NAME = "packageName"
 
-// Sample usage
-private const val SAMPLE_FROM_PROPS = "-P$PROP_FILE_NAME=secrets.json"
+// Default values
+private const val DEFAULT_FILE_NAME = "secrets.json"
 
 // Ansi Colors
 private const val ANSI_COLOR_RESET = "\u001B[0m"
@@ -119,15 +119,16 @@ internal abstract class KeepSecretsTask : DefaultTask() {
     /**
      * Get json file to hide secrets from command line
      *
-     * @throws IllegalArgumentException if no props are found in the project or if the file is not a valid file
+     * @throws IllegalArgumentException if the file is not a valid file
      * @return the json file
      */
     @Throws(IllegalArgumentException::class)
     private fun getSecretsFile(): File {
-        require(project.hasProperty(PROP_FILE_NAME)) {
-            "Please provide json file that holds secrets! Use: $SAMPLE_FROM_PROPS"
+        val fileName = if (project.hasProperty(PROP_FILE_NAME)) {
+            project.property(PROP_FILE_NAME) as String
+        } else {
+            DEFAULT_FILE_NAME
         }
-        val fileName = project.property(PROP_FILE_NAME) as String
         val secretsFile = File(project.rootDir, fileName)
         require(secretsFile.exists() && secretsFile.isFile) {
             "${secretsFile.name} does not exist or is not a valid file!"
