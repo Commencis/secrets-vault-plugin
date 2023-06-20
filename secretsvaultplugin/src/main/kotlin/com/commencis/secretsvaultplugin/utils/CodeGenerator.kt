@@ -12,16 +12,16 @@ internal object CodeGenerator {
     const val CHECK_APP_SIGNATURE_PLACEHOLDER = "// CHECK_APP_SIGNATURE_PLACEHOLDER"
 
     /**
-     * Generates C++ code for the given package name, key name, obfuscated value, and flavour.
+     * Generates C++ code for the given package name, key name, obfuscated value, and flavor.
      *
      * @param packageName the package name of the Android app
      * @param keyName the name of the key to be generated
      * @param obfuscatedValue the obfuscated value
-     * @param flavour the flavour of the app
+     * @param flavor the flavor of the app
      * @return a string containing the generated C++ code
      */
-    fun getCppCode(packageName: String, keyName: String, obfuscatedValue: String, flavour: String): String {
-        val filePrefix = if (flavour == "main") "Main" else ""
+    fun getCppCode(packageName: String, keyName: String, obfuscatedValue: String, flavor: String): String {
+        val filePrefix = if (flavor == "main") "Main" else ""
         return """
             |
             |extern "C"
@@ -51,20 +51,20 @@ internal object CodeGenerator {
     }
 
     /**
-     * Generates CMakeLists code for the given flavour and whether it is the first flavour.
+     * Generates CMakeLists code for the given flavor and whether it is the first flavor.
      *
-     * @param flavour the flavour of the app
-     * @param isFirstFlavour whether this is the first flavour
+     * @param flavor the flavor of the app
+     * @param isFirstFlavor whether this is the first flavor
      * @return a string containing the generated CMakeLists code
      */
-    fun getCMakeListsCode(flavour: String, isFirstFlavour: Boolean = false): String {
-        val elseText = if (!isFirstFlavour) "else" else ""
+    fun getCMakeListsCode(flavor: String, isFirstFlavor: Boolean = false): String {
+        val elseText = if (!isFirstFlavor) "else" else ""
         return """
-            |${elseText}if (FLAVOR STREQUAL "$flavour")
+            |${elseText}if (FLAVOR STREQUAL "$flavor")
             |    add_library(
             |            secrets
             |            SHARED
-            |            ../../$flavour/cpp/secrets.cpp
+            |            ../../$flavor/cpp/secrets.cpp
             |    )
             |
         """.trimMargin()

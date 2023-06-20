@@ -8,7 +8,7 @@ import kotlinx.serialization.Serializable
  *
  * @property key The key of the secret
  * @property value The value of the secret
- * @property flavour The flavor of the secret, default is "main"
+ * @property flavor The flavor of the secret, default is "main"
  */
 @Serializable
 internal data class Secret(
@@ -16,6 +16,6 @@ internal data class Secret(
     val key: String,
     @SerialName("value")
     val value: String,
-    @SerialName("flavour")
-    val flavour: String = "main",
+    @SerialName("flavor")
+    val flavor: String = "main",
 )

@@ -89,12 +89,12 @@ android {
     ...
     
     productFlavors {
-            flavourName {
+            flavorName {
                 ...
                 externalNativeBuild {
                     cmake {
                         // Pass arguments to CMake
-                        arguments "-DFLAVOR=flavourName"
+                        arguments "-DFLAVOR=flavorName"
                     }
                 }
             }
@@ -102,16 +102,16 @@ android {
     }
 }
 ```
-Once you have set up the flavor-specific configuration, you can include the secrets in your `credentials.json` file by specifying the flavor name using the `flavour` parameter. If a secret is independent of flavors, you can omit the `flavour` parameter, and it will be accessible from all flavors.
+Once you have set up the flavor-specific configuration, you can include the secrets in your `credentials.json` file by specifying the flavor name using the `flavor` parameter. If a secret is independent of flavors, you can omit the `flavor` parameter, and it will be accessible from all flavors.
 
 Here is an example of the `credentials.json` file structure:
 
 ```json
 [
-    { "key": "apiKey1", "value": "API_VALUE_1_DEVELOPMENT", "flavour": "dev" },
-    { "key": "apiKey1", "value": "API_VALUE_1_PRODUCTION", "flavour": "prod" },
-    { "key": "apiKey2", "value": "API_VALUE_2_DEVELOPMENT", "flavour": "dev" },
-    { "key": "apiKey2", "value": "API_VALUE_2_PRODUCTION", "flavour": "prod" },
+    { "key": "apiKey1", "value": "API_VALUE_1_DEVELOPMENT", "flavor": "dev" },
+    { "key": "apiKey1", "value": "API_VALUE_1_PRODUCTION", "flavor": "prod" },
+    { "key": "apiKey2", "value": "API_VALUE_2_DEVELOPMENT", "flavor": "dev" },
+    { "key": "apiKey2", "value": "API_VALUE_2_PRODUCTION", "flavor": "prod" },
     { "key": "apiKey4", "value": "API_VALUE_4_GENERAL" }
 ]
 ```
