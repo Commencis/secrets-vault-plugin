@@ -82,8 +82,8 @@ internal abstract class KeepSecretsTask : DefaultTask() {
         initSecretsFromFile(secretsFile = secretsFile)
         val secrets = secretsMap ?: return
         copyCMakeListsFile(secrets.keys)
-        secrets.forEach { (flavour, secretList) ->
-            keepSecrets(flavour, secretList)
+        secrets.forEach { (flavor, secretList) ->
+            keepSecrets(flavor, secretList)
         }
     }
 
@@ -144,19 +144,19 @@ internal abstract class KeepSecretsTask : DefaultTask() {
         val content = secretsFile.readText(Charsets.UTF_8)
         runCatching {
             val json = Json { encodeDefaults = true }
-            secretsMap = json.decodeFromString<Array<Secret>>(content).groupBy { it.flavour }
+            secretsMap = json.decodeFromString<Array<Secret>>(content).groupBy { it.flavor }
         }.onFailure { throwable ->
             logger.error(
                 """
                     |Error loading credentials from file due to: ${throwable.message}
                     |Please ensure that your credentials file follows this format:
                     |[
-                    |    { "key": "apiKey1", "value": "API_VALUE_1_DEVELOPMENT", "flavour": "dev" },
-                    |    { "key": "apiKey1", "value": "API_VALUE_1_PRODUCTION", "flavour": "prod" },
+                    |    { "key": "apiKey1", "value": "API_VALUE_1_DEVELOPMENT", "flavor": "dev" },
+                    |    { "key": "apiKey1", "value": "API_VALUE_1_PRODUCTION", "flavor": "prod" },
                     |    { "key": "apiKey2", "value": "API_VALUE_2_GENERAL" }
                     |]
                     |Each entry should include a 'key' and 'value'. 
-                    |If the key is specific to a particular environment, you can also include a 'flavour'.
+                    |If the key is specific to a particular environment, you can also include a 'flavor'.
                 """.trimMargin(),
             )
         }
@@ -165,24 +165,24 @@ internal abstract class KeepSecretsTask : DefaultTask() {
     /**
      * Get the destination file for the CPP code
      *
-     * @param flavour the build flavour for which the destination file should be returned
+     * @param flavor the build flavor for which the destination file should be returned
      * @param fileName the name of the file
      * @return the destination file for the CPP code
      */
-    private fun getCppDestination(flavour: String, fileName: String): File {
-        return project.file(SOURCE_SET_TEMPLATE.format(flavour, "cpp") + "$fileName")
+    private fun getCppDestination(flavor: String, fileName: String): File {
+        return project.file(SOURCE_SET_TEMPLATE.format(flavor, "cpp") + "$fileName")
     }
 
     /**
      * Get the destination file for the Kotlin code
      *
-     * @param flavour the build flavour for which the destination file should be returned
+     * @param flavor the build flavor for which the destination file should be returned
      * @param fileName the name of the file
      * @return the destination file for the Kotlin code
      */
-    private fun getKotlinDestination(flavour: String, fileName: String): File {
-        val javaPath = SOURCE_SET_TEMPLATE.format(flavour, "java")
-        val kotlinPath = SOURCE_SET_TEMPLATE.format(flavour, "kotlin")
+    private fun getKotlinDestination(flavor: String, fileName: String): File {
+        val javaPath = SOURCE_SET_TEMPLATE.format(flavor, "java")
+        val kotlinPath = SOURCE_SET_TEMPLATE.format(flavor, "kotlin")
         val basePath = if (project.file(javaPath).exists()) javaPath else kotlinPath
         val packagePath = getAppPackageName().split(".").joinToString(File.separator)
         val fullPath = basePath + packagePath
@@ -197,11 +197,11 @@ internal abstract class KeepSecretsTask : DefaultTask() {
     }
 
     /**
-     * Copies CPP files to the appropriate destination for the specified build flavour
+     * Copies CPP files to the appropriate destination for the specified build flavor
      *
-     * @param flavour the build flavour for which the files should be copied
+     * @param flavor the build flavor for which the files should be copied
      */
-    private fun copyCppFiles(flavour: String) {
+    private fun copyCppFiles(flavor: String) {
         runCatching {
             project.file("$tempFolder/cpp/").listFiles()?.forEach { file ->
                 if (file.name == C_MAKE_LISTS_FILE_NAME) {
@@ -218,7 +218,7 @@ internal abstract class KeepSecretsTask : DefaultTask() {
                             CodeGenerator.getAppSignatureCheck(appSignatureList)
                         }.orEmpty()
                     )
-                val destination = getCppDestination(flavour = flavour, fileName = file.name)
+                val destination = getCppDestination(flavor = flavor, fileName = file.name)
                 destination.parentFile?.takeIf { it.exists().not() }?.mkdirs()
                 destination.takeIf { it.exists().not() }?.createNewFile()
                 destination.writeText(text)
@@ -231,22 +231,22 @@ internal abstract class KeepSecretsTask : DefaultTask() {
     }
 
     /**
-     * Copies the CMakeLists.txt file to the appropriate destination for all the provided build flavours
+     * Copies the CMakeLists.txt file to the appropriate destination for all the provided build flavors
      *
-     * @param flavours the set of build flavours for which the file should be copied
+     * @param flavors the set of build flavors for which the file should be copied
      */
-    private fun copyCMakeListsFile(flavours: Set<String>) {
+    private fun copyCMakeListsFile(flavors: Set<String>) {
         runCatching {
             project.file("$tempFolder/cpp/").listFiles()?.forEach { file ->
                 if (file.name != C_MAKE_LISTS_FILE_NAME) {
                     return@forEach
                 }
                 var text = file.readText(Charset.defaultCharset())
-                flavours.forEachIndexed { index, flavour ->
-                    if (flavour == MAIN_SOURCE_SET_NAME) return@forEachIndexed
-                    text += CodeGenerator.getCMakeListsCode(flavour = flavour, index == 0)
+                flavors.forEachIndexed { index, flavor ->
+                    if (flavor == MAIN_SOURCE_SET_NAME) return@forEachIndexed
+                    text += CodeGenerator.getCMakeListsCode(flavor = flavor, index == 0)
                 }
-                if (flavours.size > 1) {
+                if (flavors.size > 1) {
                     text += "endif()\n"
                 }
                 val destination = getCppDestination(MAIN_SOURCE_SET_NAME, fileName = file.name)
@@ -261,16 +261,16 @@ internal abstract class KeepSecretsTask : DefaultTask() {
         }
     }
 
-    private fun copyKotlinFile(flavour: String) {
+    private fun copyKotlinFile(flavor: String) {
         runCatching {
             project.file("$tempFolder/kotlin/").listFiles()?.forEach { file ->
                 var text = file.readText(Charset.defaultCharset())
-                val secretsFilePrefix = if (flavour == MAIN_SOURCE_SET_NAME) MAIN_SOURCE_SET_NAME else ""
+                val secretsFilePrefix = if (flavor == MAIN_SOURCE_SET_NAME) MAIN_SOURCE_SET_NAME else ""
                 text = text.replace(PACKAGE_PLACEHOLDER, getAppPackageName())
                     .replace(SECRETS_FILE_PLACEHOLDER, secretsFilePrefix)
                     .replace(SECRETS_CLASS_NAME_PLACEHOLDER, secretsFilePrefix.capitalize())
                 val destination = getKotlinDestination(
-                    flavour = flavour,
+                    flavor = flavor,
                     fileName = secretsFilePrefix.capitalize() + file.name,
                 )
                 destination.parentFile?.takeIf { it.exists().not() }?.mkdirs()
@@ -285,23 +285,23 @@ internal abstract class KeepSecretsTask : DefaultTask() {
     }
 
     /**
-     * Keeps the provided secrets for the specified build flavour
+     * Keeps the provided secrets for the specified build flavor
      *
-     * @param flavour the build flavour for which the secrets should be hidden
+     * @param flavor the build flavor for which the secrets should be hidden
      * @param secrets the list of secrets to be hidden
      */
-    private fun keepSecrets(flavour: String, secrets: List<Secret>) {
+    private fun keepSecrets(flavor: String, secrets: List<Secret>) {
         if (secrets.isEmpty()) {
-            logWarning("No secrets to hide for the flavour $flavour.")
+            logWarning("No secrets to hide for the flavor $flavor.")
             return
         }
 
-        copyCppFiles(flavour)
-        copyKotlinFile(flavour)
+        copyCppFiles(flavor)
+        copyKotlinFile(flavor)
 
-        val secretsFilePrefix = if (flavour == MAIN_SOURCE_SET_NAME) MAIN_SOURCE_SET_NAME else ""
+        val secretsFilePrefix = if (flavor == MAIN_SOURCE_SET_NAME) MAIN_SOURCE_SET_NAME else ""
         val secretsKotlin = getKotlinDestination(
-            flavour = flavour,
+            flavor = flavor,
             fileName = secretsFilePrefix.capitalize() + KOTLIN_FILE_NAME
         )
 
@@ -318,7 +318,7 @@ internal abstract class KeepSecretsTask : DefaultTask() {
             kotlinPackage = getAppPackageName()
         }
 
-        val secretsCpp = getCppDestination(flavour = flavour, fileName = SECRETS_CPP_FILE_NAME)
+        val secretsCpp = getCppDestination(flavor = flavor, fileName = SECRETS_CPP_FILE_NAME)
         secrets.forEach { secret ->
             val (key, value) = secret
             val obfuscatedValue = Utils.encodeSecret(value, obfuscationKey)
@@ -328,12 +328,12 @@ internal abstract class KeepSecretsTask : DefaultTask() {
                 return@forEach
             }
             val cppKeyName = Utils.getCppName(key)
-            secretsCpp.appendText(CodeGenerator.getCppCode(kotlinPackage, cppKeyName, obfuscatedValue, flavour))
+            secretsCpp.appendText(CodeGenerator.getCppCode(kotlinPackage, cppKeyName, obfuscatedValue, flavor))
         }
-        val secretsPrefix = if (flavour == MAIN_SOURCE_SET_NAME) MAIN_SOURCE_SET_NAME.capitalize() else ""
+        val secretsPrefix = if (flavor == MAIN_SOURCE_SET_NAME) MAIN_SOURCE_SET_NAME.capitalize() else ""
         logSuccess(
-            "You can now get your secret key for flavour {} by calling : {}Secrets().getYourSecretKeyName()",
-            flavour,
+            "You can now get your secret key for flavor {} by calling : {}Secrets().getYourSecretKeyName()",
+            flavor,
             secretsPrefix,
         )
     }
