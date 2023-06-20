@@ -31,7 +31,7 @@ private const val PROP_APP_SIGNATURES = "appSignatures"
 private const val PROP_PACKAGE_NAME = "packageName"
 
 // Sample usage
-private const val SAMPLE_FROM_PROPS = "-P$PROP_FILE_NAME=credentials.json"
+private const val SAMPLE_FROM_PROPS = "-P$PROP_FILE_NAME=secrets.json"
 
 // Ansi Colors
 private const val ANSI_COLOR_RESET = "\u001B[0m"
