@@ -1,16 +1,15 @@
 package com.commencis.secretsvaultplugin.utils
 
 /**
+ * Placeholder string that is used in the generated C++ code
+ * to indicate where the app signature check code should be inserted.
+ */
+const val CHECK_APP_SIGNATURE_PLACEHOLDER = "// CHECK_APP_SIGNATURE_PLACEHOLDER"
+
+/**
  * Helper class that generates various code snippets needed
  */
-internal object CodeGenerator {
-
-    /**
-     * Placeholder string that is used in the generated C++ code
-     * to indicate where the app signature check code should be inserted.
-     */
-    const val CHECK_APP_SIGNATURE_PLACEHOLDER = "// CHECK_APP_SIGNATURE_PLACEHOLDER"
-
+internal class CodeGenerator {
     /**
      * Generates C++ code for the given package name, key name, obfuscated value, and flavor.
      *
