@@ -7,7 +7,7 @@ import org.gradle.api.tasks.Copy
 import org.gradle.api.tasks.TaskAction
 
 // Tasks
-private const val TASK_GROUP = "Secrets Vault"
+private const val TASK_GROUP = "secrets vault"
 private const val TASK_UNZIP_SECRETS_VAULT = "unzipSecretsVault"
 private const val TASK_KEEP_SECRETS_FROM_JSON_FILE = "keepSecrets"
 
@@ -30,7 +30,7 @@ internal class SecretsVaultPlugin : Plugin<Project> {
         /**
          * Create a gradle task to unzip the plugin into a temporary directory.
          */
-        project.tasks.create(
+        project.tasks.register(
             TASK_UNZIP_SECRETS_VAULT,
             Copy::class.java,
             object : Action<Copy> {
@@ -46,20 +46,20 @@ internal class SecretsVaultPlugin : Plugin<Project> {
                     println("Unzipped jar to $tempFolder")
                 }
             }
-        ).apply {
+        ).configure {
             group = TASK_GROUP
-            this.description = "Unzip secrets vault plugin into temp directory"
+            description = "Unzip secrets vault plugin into temp directory"
         }
 
         /**
          * Create a gradle task to keep secrets from a json file.
          */
-        project.tasks.create(
+        project.tasks.register(
             TASK_KEEP_SECRETS_FROM_JSON_FILE,
             KeepSecretsTask::class.java,
-        ).apply {
+        ).configure {
             group = TASK_GROUP
-            description = "Re-generate and obfuscate keys from json file and add it to your Android project"
+            description = "Re-generate and obfuscate keys from the json file and add it to your Android project"
             dependsOn(TASK_UNZIP_SECRETS_VAULT)
         }
     }
