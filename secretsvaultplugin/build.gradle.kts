@@ -50,9 +50,5 @@ configure<DetektExtension> {
     baseline = file("$rootDir/.detekt/baseline.xml")
 }
 
-tasks.withType<Copy> {
-    duplicatesStrategy = DuplicatesStrategy.INCLUDE
-}
-
 group = "com.commencis.secretsvaultplugin"
 version = "0.1.0"
