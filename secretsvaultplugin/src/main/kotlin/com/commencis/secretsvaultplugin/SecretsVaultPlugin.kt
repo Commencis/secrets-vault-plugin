@@ -25,7 +25,7 @@ internal class SecretsVaultPlugin : Plugin<Project> {
         /**
          * Temporary folder for storing the secrets
          */
-        val tempFolder = "${project.buildDir}/secrets-vault-temp"
+        val tempFolder = "${project.buildDir}/intermediates/secrets_vault_plugin"
 
         /**
          * Create a gradle task to unzip the plugin into a temporary directory.
@@ -40,7 +40,10 @@ internal class SecretsVaultPlugin : Plugin<Project> {
                     val classCodeLocation = javaClass.protectionDomain.codeSource.location.toExternalForm()
 
                     // Create a zip tree from the location and copy it into a temporary folder
-                    copy.from(project.zipTree(classCodeLocation))
+                    copy.from(project.zipTree(classCodeLocation)) {
+                        include("**/cpp/**")
+                        include("**/kotlin/**")
+                    }
                     copy.into(tempFolder)
 
                     println("Unzipped jar to $tempFolder")
