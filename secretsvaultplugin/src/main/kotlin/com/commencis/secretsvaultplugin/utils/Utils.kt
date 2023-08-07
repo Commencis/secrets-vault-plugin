@@ -5,8 +5,15 @@ import java.nio.charset.Charset
 import java.security.MessageDigest
 import kotlin.experimental.xor
 
-// Byte mask for hexadecimal conversion
+/**
+ * Byte mask for hexadecimal conversion
+ */
 internal const val BYTE_MASK = 0xff
+
+/**
+ * Represents the length of the generated obfuscation key.
+ */
+private const val OBFUSCATION_KEY_LENGTH = 32
 
 /**
  * Utility class for common functionality
@@ -66,6 +73,21 @@ internal object Utils {
         val lines = file.readLines(Charset.defaultCharset())
         val packageLine = lines.firstOrNull { it.startsWith("package ") } ?: return null
         return packageLine.replace("package ", "").replace("`", "")
+    }
+
+    /**
+     * Generates a random alphanumeric string of defined by [OBFUSCATION_KEY_LENGTH] for obfuscation purposes.
+     *
+     * This function creates a string of length defined by [OBFUSCATION_KEY_LENGTH] that contains random alphanumeric
+     * characters (both lowercase and uppercase letters, and digits).
+     *
+     * @return A random alphanumeric string of length defined by [OBFUSCATION_KEY_LENGTH].
+     */
+    fun generateObfuscationKey(): String {
+        val allowedChars = ('a'..'z') + ('A'..'Z') + ('0'..'9')
+        return (1..OBFUSCATION_KEY_LENGTH)
+            .map { allowedChars.random() }
+            .joinToString("")
     }
 
     /**

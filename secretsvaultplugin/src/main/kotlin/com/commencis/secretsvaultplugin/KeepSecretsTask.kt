@@ -1,8 +1,10 @@
 package com.commencis.secretsvaultplugin
 
 import com.android.build.api.dsl.CommonExtension
+import com.commencis.secretsvaultplugin.extensions.SecretsVaultExtension
 import com.commencis.secretsvaultplugin.utils.CHECK_APP_SIGNATURE_PLACEHOLDER
 import com.commencis.secretsvaultplugin.utils.CodeGenerator
+import com.commencis.secretsvaultplugin.utils.EMPTY_STRING
 import com.commencis.secretsvaultplugin.utils.Utils
 import com.commencis.secretsvaultplugin.utils.capitalize
 import kotlinx.serialization.json.Json
@@ -24,17 +26,6 @@ private const val KOTLIN_FILE_NAME = "Secrets.kt"
 private const val SECRETS_CPP_FILE_NAME = "secrets.cpp"
 private const val C_MAKE_LISTS_FILE_NAME = "CMakeLists.txt"
 private const val MAIN_SOURCE_SET_NAME = "main"
-
-private const val OBFUSCATION_KEY_LENGTH = 32
-
-// Properties
-private const val PROP_OBFUSCATION_KEY = "obfuscationKey"
-private const val PROP_FILE_NAME = "fileName"
-private const val PROP_APP_SIGNATURES = "appSignatures"
-private const val PROP_PACKAGE_NAME = "packageName"
-
-// Default values
-private const val DEFAULT_FILE_NAME = "secrets.json"
 
 // Ansi Colors
 private const val ANSI_COLOR_RESET = "\u001B[0m"
@@ -67,18 +58,22 @@ internal abstract class KeepSecretsTask : DefaultTask() {
     abstract val json: Property<Json>
 
     /**
-     * Retrieves or generates the obfuscation key.
-     * Checks if the project has the obfuscation key property.
-     * If the property exists, it will be used as the obfuscation key.
-     * Otherwise, a new obfuscation key is generated.
-     *
-     * @return The obfuscation key as a String.
+     * Provides lazy access to the [SecretsVaultExtension] of the project.
      */
-    private val obfuscationKey by lazy {
-        if (project.hasProperty(PROP_OBFUSCATION_KEY)) {
-            project.property(PROP_OBFUSCATION_KEY) as String
-        } else {
-            generateObfuscationKey()
+    private val secretsVaultExtension by lazy {
+        project.extensions.getByType(SecretsVaultExtension::class.java)
+    }
+
+    /**
+     * Get the package name of the module on which this plugin is used
+     *
+     * The function will first attempt to get the package name from the [SecretsVaultExtension].
+     * If it's not provided (i.e., it's an empty string), the function will attempt to get the namespace
+     * from the [CommonExtension] of the project.
+     */
+    private val packageName: String by lazy {
+        secretsVaultExtension.packageName.getOrElse(EMPTY_STRING).ifEmpty {
+            project.extensions.getByType(CommonExtension::class.java).namespace.orEmpty()
         }
     }
 
@@ -103,48 +98,14 @@ internal abstract class KeepSecretsTask : DefaultTask() {
     }
 
     /**
-     * Get the package name of the Android app on which this plugin is used
-     *
-     * If the project has a property named [PROP_PACKAGE_NAME], it will be used as the package name.
-     * Otherwise, the function will attempt to get the applicationId from the ApplicationExtension of the project.
-     *
-     * @return the package name of the Android app
-     */
-    private fun getAppPackageName(): String {
-        return if (project.hasProperty(PROP_PACKAGE_NAME)) {
-            project.property(PROP_PACKAGE_NAME) as String
-        } else {
-            val commonExtension = project.extensions.getByType(CommonExtension::class.java)
-            commonExtension.namespace.orEmpty()
-        }
-    }
-
-    /**
-     * Get app signatures param from command line
-     * @return the list of app signatures if the project has a property named [PROP_APP_SIGNATURES] or null
-     */
-    private fun getAppSignatures(): List<String>? {
-        return if (project.hasProperty(PROP_APP_SIGNATURES)) {
-            (project.property(PROP_APP_SIGNATURES) as String).split(",")
-        } else {
-            null
-        }
-    }
-
-    /**
-     * Get json file to hide secrets from command line
+     * Get json file to hide secrets
      *
      * @throws IllegalArgumentException if the file is not a valid file
      * @return the json file
      */
     @Throws(IllegalArgumentException::class)
     private fun getSecretsFile(): File {
-        val fileName = if (project.hasProperty(PROP_FILE_NAME)) {
-            project.property(PROP_FILE_NAME) as String
-        } else {
-            DEFAULT_FILE_NAME
-        }
-        val secretsFile = File(project.rootDir, fileName)
+        val secretsFile = secretsVaultExtension.secretsFile.get()
         require(secretsFile.exists() && secretsFile.isFile) {
             "${secretsFile.name} does not exist or is not a valid file!"
         }
@@ -200,7 +161,7 @@ internal abstract class KeepSecretsTask : DefaultTask() {
         val kotlinPath = SOURCE_SET_TEMPLATE.format(flavor, "kotlin")
         val javaPath = SOURCE_SET_TEMPLATE.format(flavor, "java")
         val basePath = kotlinPath.takeIf { project.file(kotlinPath).exists() } ?: javaPath
-        val packagePath = getAppPackageName().replace(".", File.separator)
+        val packagePath = packageName.replace(".", File.separator)
         val fullPath = basePath + packagePath
 
         val directory = project.file(fullPath)
@@ -219,17 +180,17 @@ internal abstract class KeepSecretsTask : DefaultTask() {
      */
     private fun copyCppFiles(flavor: String) {
         runCatching {
-            val appSignaturesCodeBlock = getAppSignatures()?.map { appSignature ->
-                Utils.encodeSecret(appSignature, obfuscationKey)
-            }?.let { appSignatures ->
-                codeGenerator.getAppSignatureCheck(appSignatures)
-            }.orEmpty()
+            val appSignaturesCodeBlock = secretsVaultExtension.appSignatures.get().map { appSignature ->
+                Utils.encodeSecret(appSignature, secretsVaultExtension.obfuscationKey.get())
+            }.let { encodedAppSignatures ->
+                codeGenerator.getAppSignatureCheck(encodedAppSignatures)
+            }
             project.file("${pluginSourceFolder.get().path}/cpp/").listFiles()?.forEach { file ->
                 if (file.name == C_MAKE_LISTS_FILE_NAME) {
                     return@forEach
                 }
                 val text = file.readText(Charset.defaultCharset())
-                    .replace(OBFUSCATION_KEY_PLACEHOLDER, obfuscationKey)
+                    .replace(OBFUSCATION_KEY_PLACEHOLDER, secretsVaultExtension.obfuscationKey.get())
                     .replace(CHECK_APP_SIGNATURE_PLACEHOLDER, appSignaturesCodeBlock)
                 val destination = getCppDestination(flavor = flavor, fileName = file.name)
                 writeTextToFile(destination, text)
@@ -277,7 +238,7 @@ internal abstract class KeepSecretsTask : DefaultTask() {
             project.file("${pluginSourceFolder.get().path}/kotlin/").listFiles()?.forEach { file ->
                 var text = file.readText(Charset.defaultCharset())
                 val secretsFilePrefix = if (flavor == MAIN_SOURCE_SET_NAME) MAIN_SOURCE_SET_NAME else ""
-                text = text.replace(PACKAGE_PLACEHOLDER, getAppPackageName())
+                text = text.replace(PACKAGE_PLACEHOLDER, packageName)
                     .replace(SECRETS_FILE_PLACEHOLDER, secretsFilePrefix)
                     .replace(SECRETS_CLASS_NAME_PLACEHOLDER, secretsFilePrefix.capitalize())
                 val destination = getKotlinDestination(
@@ -324,13 +285,13 @@ internal abstract class KeepSecretsTask : DefaultTask() {
         var kotlinPackage = Utils.getKotlinFilePackage(secretsKotlin)
         if (kotlinPackage.isNullOrEmpty()) {
             logWarning("Empty package in $KOTLIN_FILE_NAME")
-            kotlinPackage = getAppPackageName()
+            kotlinPackage = packageName
         }
 
         val secretsCpp = getCppDestination(flavor = flavor, fileName = SECRETS_CPP_FILE_NAME)
         secrets.forEach { secret ->
             val (key, value) = secret
-            val obfuscatedValue = Utils.encodeSecret(value, obfuscationKey)
+            val obfuscatedValue = Utils.encodeSecret(value, secretsVaultExtension.obfuscationKey.get())
             val cppText = secretsCpp.readText(Charset.defaultCharset())
             if (cppText.contains(obfuscatedValue)) {
                 logWarning("Key already added in C++ !")
@@ -345,21 +306,6 @@ internal abstract class KeepSecretsTask : DefaultTask() {
             flavor,
             secretsPrefix,
         )
-    }
-
-    /**
-     * Generates a random alphanumeric string of length 32 for obfuscation purposes.
-     *
-     * This function creates a 32-character string that contains random alphanumeric
-     * characters (both lowercase and uppercase letters, and digits).
-     *
-     * @return A random alphanumeric string of length 32.
-     */
-    private fun generateObfuscationKey(): String {
-        val allowedChars = ('a'..'z') + ('A'..'Z') + ('0'..'9')
-        return (1..OBFUSCATION_KEY_LENGTH)
-            .map { allowedChars.random() }
-            .joinToString("")
     }
 
     /**
