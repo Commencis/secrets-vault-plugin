@@ -76,6 +76,9 @@ internal class CodeGenerator {
      * @return a string containing the generated C++ code for app signature check
      */
     fun getAppSignatureCheck(appSignatures: List<String>): String {
+        if (appSignatures.isEmpty()) {
+            return EMPTY_STRING
+        }
         val signatures = appSignatures.joinToString(separator = "") { "        $it,\n" }.trimEnd(',', '\n')
         return """
             |const char appSignatures[][32] = {

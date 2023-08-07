@@ -1,5 +1,7 @@
 package com.commencis.secretsvaultplugin
 
+import com.commencis.secretsvaultplugin.extensions.SecretsVaultExtension
+import com.commencis.secretsvaultplugin.utils.Utils
 import kotlinx.serialization.json.Json
 import org.gradle.api.Plugin
 import org.gradle.api.Project
@@ -9,6 +11,14 @@ import org.gradle.api.tasks.Copy
 private const val TASK_GROUP = "secrets vault"
 private const val TASK_UNZIP_SECRETS_VAULT = "unzipSecretsVault"
 private const val TASK_KEEP_SECRETS_FROM_JSON_FILE = "keepSecrets"
+
+// Extensions
+private const val EXTENSION_NAME = "secretsVault"
+
+/**
+ * Represents the default file name for the secrets file.
+ */
+private const val DEFAULT_SECRETS_FILE_NAME = "secrets.json"
 
 /**
  * Main class of the Secrets Vault Plugin.
@@ -21,6 +31,12 @@ internal class SecretsVaultPlugin : Plugin<Project> {
      * @param project the project to which the plugin should be applied.
      */
     override fun apply(project: Project) {
+        project.extensions.create(EXTENSION_NAME, SecretsVaultExtension::class.java).apply {
+            obfuscationKey.convention(Utils.generateObfuscationKey())
+            secretsFile.convention(project.file(DEFAULT_SECRETS_FILE_NAME))
+            appSignatures.convention(emptyList())
+        }
+
         /**
          * Create a gradle task to unzip the plugin into a temporary directory.
          */
@@ -45,7 +61,7 @@ internal class SecretsVaultPlugin : Plugin<Project> {
         project.tasks.register(TASK_KEEP_SECRETS_FROM_JSON_FILE, KeepSecretsTask::class.java).configure {
             group = TASK_GROUP
             description = "Re-generate and obfuscate keys from the json file and add it to your Android project"
-            pluginSourceFolder.set(unzipTaskProvider.get().destinationDir)
+            pluginSourceFolder.set(unzipTaskProvider.map { task -> task.destinationDir })
             json.set(Json { encodeDefaults = true })
         }
     }

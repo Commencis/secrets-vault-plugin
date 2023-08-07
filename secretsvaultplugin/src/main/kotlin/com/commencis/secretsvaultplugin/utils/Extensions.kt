@@ -3,6 +3,11 @@ package com.commencis.secretsvaultplugin.utils
 import java.util.Locale
 
 /**
+ * Represents an empty string used for default values.
+ */
+const val EMPTY_STRING = ""
+
+/**
  * Capitalizes the first character of the string.
  *
  * @receiver The original string.
