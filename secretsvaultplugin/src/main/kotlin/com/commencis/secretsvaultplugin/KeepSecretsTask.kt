@@ -1,6 +1,5 @@
 package com.commencis.secretsvaultplugin
 
-import com.android.build.api.dsl.ApplicationExtension
 import com.android.build.api.dsl.CommonExtension
 import com.commencis.secretsvaultplugin.utils.CHECK_APP_SIGNATURE_PLACEHOLDER
 import com.commencis.secretsvaultplugin.utils.CodeGenerator
@@ -8,6 +7,9 @@ import com.commencis.secretsvaultplugin.utils.Utils
 import com.commencis.secretsvaultplugin.utils.capitalize
 import kotlinx.serialization.json.Json
 import org.gradle.api.DefaultTask
+import org.gradle.api.provider.Property
+import org.gradle.api.tasks.InputDirectory
+import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.TaskAction
 import java.io.File
 import java.io.IOException
@@ -53,9 +55,16 @@ internal abstract class KeepSecretsTask : DefaultTask() {
     private var secretsMap: Map<String, List<Secret>>? = null
 
     /**
-     * Temporary folder for storing the secrets
+     * Plugin source folder that has the cpp and kotlin files
      */
-    private val tempFolder = "${project.buildDir}/intermediates/secrets_vault_plugin"
+    @get:InputDirectory
+    abstract val pluginSourceFolder: Property<File>
+
+    /**
+     * Represents the JSON property of the class it's abstracted in.
+     */
+    @get:Internal
+    abstract val json: Property<Json>
 
     /**
      * Retrieves or generates the obfuscation key.
@@ -106,7 +115,7 @@ internal abstract class KeepSecretsTask : DefaultTask() {
             project.property(PROP_PACKAGE_NAME) as String
         } else {
             val commonExtension = project.extensions.getByType(CommonExtension::class.java)
-            (commonExtension as? ApplicationExtension)?.defaultConfig?.applicationId.orEmpty()
+            commonExtension.namespace.orEmpty()
         }
     }
 
@@ -151,7 +160,7 @@ internal abstract class KeepSecretsTask : DefaultTask() {
         val content = secretsFile.readText(Charsets.UTF_8)
         runCatching {
             val json = Json { encodeDefaults = true }
-            secretsMap = json.decodeFromString<Array<Secret>>(content).groupBy { it.flavor }
+            secretsMap = json.decodeFromString<Secrets>(content).secrets.groupBy { it.flavor }
         }.onFailure { throwable ->
             logger.error(
                 """
@@ -188,9 +197,9 @@ internal abstract class KeepSecretsTask : DefaultTask() {
      * @return the destination file for the Kotlin code
      */
     private fun getKotlinDestination(flavor: String, fileName: String): File {
-        val javaPath = SOURCE_SET_TEMPLATE.format(flavor, "java")
         val kotlinPath = SOURCE_SET_TEMPLATE.format(flavor, "kotlin")
-        val basePath = javaPath.takeIf { project.file(javaPath).exists() } ?: kotlinPath
+        val javaPath = SOURCE_SET_TEMPLATE.format(flavor, "java")
+        val basePath = kotlinPath.takeIf { project.file(kotlinPath).exists() } ?: javaPath
         val packagePath = getAppPackageName().replace(".", File.separator)
         val fullPath = basePath + packagePath
 
@@ -215,7 +224,7 @@ internal abstract class KeepSecretsTask : DefaultTask() {
             }?.let { appSignatures ->
                 codeGenerator.getAppSignatureCheck(appSignatures)
             }.orEmpty()
-            project.file("$tempFolder/cpp/").listFiles()?.forEach { file ->
+            project.file("${pluginSourceFolder.get().path}/cpp/").listFiles()?.forEach { file ->
                 if (file.name == C_MAKE_LISTS_FILE_NAME) {
                     return@forEach
                 }
@@ -239,7 +248,7 @@ internal abstract class KeepSecretsTask : DefaultTask() {
      */
     private fun copyCMakeListsFile(flavors: Set<String>) {
         runCatching {
-            project.file("$tempFolder/cpp/").listFiles()?.forEach { file ->
+            project.file("${pluginSourceFolder.get().path}/cpp/").listFiles()?.forEach { file ->
                 if (file.name != C_MAKE_LISTS_FILE_NAME) {
                     return@forEach
                 }
@@ -265,7 +274,7 @@ internal abstract class KeepSecretsTask : DefaultTask() {
 
     private fun copyKotlinFile(flavor: String) {
         runCatching {
-            project.file("$tempFolder/kotlin/").listFiles()?.forEach { file ->
+            project.file("${pluginSourceFolder.get().path}/kotlin/").listFiles()?.forEach { file ->
                 var text = file.readText(Charset.defaultCharset())
                 val secretsFilePrefix = if (flavor == MAIN_SOURCE_SET_NAME) MAIN_SOURCE_SET_NAME else ""
                 text = text.replace(PACKAGE_PLACEHOLDER, getAppPackageName())

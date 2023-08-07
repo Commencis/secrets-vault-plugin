@@ -4,6 +4,15 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
+ * Value class representing a collection of secrets.
+ *
+ * @property secrets An array of [Secret] objects.
+ */
+@JvmInline
+@Serializable
+internal value class Secrets(val secrets: Array<Secret>)
+
+/**
  * Data class representing a Secret
  *
  * @property key The key of the secret
