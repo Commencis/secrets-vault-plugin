@@ -1,10 +1,9 @@
 package com.commencis.secretsvaultplugin
 
-import org.gradle.api.Action
+import kotlinx.serialization.json.Json
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.tasks.Copy
-import org.gradle.api.tasks.TaskAction
 
 // Tasks
 private const val TASK_GROUP = "secrets vault"
@@ -23,47 +22,31 @@ internal class SecretsVaultPlugin : Plugin<Project> {
      */
     override fun apply(project: Project) {
         /**
-         * Temporary folder for storing the secrets
-         */
-        val tempFolder = "${project.buildDir}/intermediates/secrets_vault_plugin"
-
-        /**
          * Create a gradle task to unzip the plugin into a temporary directory.
          */
-        project.tasks.register(
-            TASK_UNZIP_SECRETS_VAULT,
-            Copy::class.java,
-            object : Action<Copy> {
-                @TaskAction
-                override fun execute(copy: Copy) {
-                    // Get the location of the current class's compiled code
-                    val classCodeLocation = javaClass.protectionDomain.codeSource.location.toExternalForm()
-
-                    // Create a zip tree from the location and copy it into a temporary folder
-                    copy.from(project.zipTree(classCodeLocation)) {
-                        include("**/cpp/**")
-                        include("**/kotlin/**")
-                    }
-                    copy.into(tempFolder)
-
-                    println("Unzipped jar to $tempFolder")
-                }
-            }
-        ).configure {
+        val unzipTaskProvider = project.tasks.register(TASK_UNZIP_SECRETS_VAULT, Copy::class.java) {
             group = TASK_GROUP
             description = "Unzip secrets vault plugin into temp directory"
+            // Get the location of the current class's compiled code
+            val classCodeLocation =
+                this@SecretsVaultPlugin.javaClass.protectionDomain.codeSource.location.toExternalForm()
+
+            // Create a zip tree from the location and copy it into a temporary folder
+            from(project.zipTree(classCodeLocation)) {
+                include("**/cpp/**")
+                include("**/kotlin/**")
+            }
+            into(project.layout.buildDirectory.dir("intermediates/secrets_vault_plugin"))
         }
 
         /**
          * Create a gradle task to keep secrets from a json file.
          */
-        project.tasks.register(
-            TASK_KEEP_SECRETS_FROM_JSON_FILE,
-            KeepSecretsTask::class.java,
-        ).configure {
+        project.tasks.register(TASK_KEEP_SECRETS_FROM_JSON_FILE, KeepSecretsTask::class.java).configure {
             group = TASK_GROUP
             description = "Re-generate and obfuscate keys from the json file and add it to your Android project"
-            dependsOn(TASK_UNZIP_SECRETS_VAULT)
+            pluginSourceFolder.set(unzipTaskProvider.get().destinationDir)
+            json.set(Json { encodeDefaults = true })
         }
     }
 }
