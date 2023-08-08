@@ -120,8 +120,7 @@ internal abstract class KeepSecretsTask : DefaultTask() {
     private fun initSecretsFromFile(secretsFile: File) {
         val content = secretsFile.readText(Charsets.UTF_8)
         runCatching {
-            val json = Json { encodeDefaults = true }
-            secretsMap = json.decodeFromString<Secrets>(content).secrets.groupBy { it.flavor }
+            secretsMap = json.get().decodeFromString<Secrets>(content).secrets.groupBy { it.flavor }
         }.onFailure { throwable ->
             logger.error(
                 """
