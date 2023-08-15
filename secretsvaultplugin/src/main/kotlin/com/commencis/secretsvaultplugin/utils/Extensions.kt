@@ -5,7 +5,7 @@ import java.util.Locale
 /**
  * Represents an empty string used for default values.
  */
-const val EMPTY_STRING = ""
+internal const val EMPTY_STRING = ""
 
 /**
  * Capitalizes the first character of the string.
