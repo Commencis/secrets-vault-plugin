@@ -15,6 +15,9 @@ private const val TASK_KEEP_SECRETS_FROM_JSON_FILE = "keepSecrets"
 // Extensions
 private const val EXTENSION_NAME = "secretsVault"
 
+// Defaults
+private const val DEFAULT_CMAKE_VERSION = "3.4.1"
+
 /**
  * Represents the default file name for the secrets file.
  */
@@ -36,6 +39,7 @@ internal class SecretsVaultPlugin : Plugin<Project> {
             secretsFile.convention(project.file(DEFAULT_SECRETS_FILE_NAME))
             appSignatures.convention(emptyList())
             cmakeProjectName.convention(project.name)
+            cmakeVersion.convention(DEFAULT_CMAKE_VERSION)
         }
 
         /**

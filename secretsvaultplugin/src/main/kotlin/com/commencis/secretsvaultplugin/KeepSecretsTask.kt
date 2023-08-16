@@ -23,6 +23,7 @@ private const val SECRETS_FILE_PLACEHOLDER = "SECRETS_FILE_PREFIX"
 private const val SECRETS_CLASS_NAME_PLACEHOLDER = "SECRETS_CLASS_NAME_PREFIX"
 private const val OBFUSCATION_KEY_PLACEHOLDER = "OBFUSCATION_KEY_PLACEHOLDER"
 private const val PROJECT_NAME_PLACEHOLDER = "PROJECT_NAME_PLACEHOLDER"
+private const val CMAKE_VERSION_PLACEHOLDER = "CMAKE_VERSION_PLACEHOLDER"
 private const val KOTLIN_FILE_NAME = "Secrets.kt"
 private const val SECRETS_CPP_FILE_NAME = "secrets.cpp"
 private const val C_MAKE_LISTS_FILE_NAME = "CMakeLists.txt"
@@ -218,6 +219,7 @@ internal abstract class KeepSecretsTask : DefaultTask() {
                 val textBuilder = StringBuilder(
                     file.readText(Charset.defaultCharset())
                         .replace(PROJECT_NAME_PLACEHOLDER, secretsVaultExtension.cmakeProjectName.get())
+                        .replace(CMAKE_VERSION_PLACEHOLDER, secretsVaultExtension.cmakeVersion.get())
                 )
                 flavors.forEachIndexed { index, flavor ->
                     if (flavor == MAIN_SOURCE_SET_NAME) {

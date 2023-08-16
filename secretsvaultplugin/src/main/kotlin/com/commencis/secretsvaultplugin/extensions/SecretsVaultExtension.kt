@@ -16,6 +16,7 @@ import java.io.File
  * @property packageName The name of the package. If not specified, an empty string [EMPTY_STRING] is used.
  * @property cmakeProjectName The name of the CMAKE project.
  * If not specified, the name of the module to which the plugin is applied will be used.
+ * @property cmakeVersion The version of CMake. If not specified, [DEFAULT_CMAKE_VERSION] will be used.
  */
 internal interface SecretsVaultExtension {
     val obfuscationKey: Property<String>
@@ -23,4 +24,5 @@ internal interface SecretsVaultExtension {
     val appSignatures: ListProperty<String>
     val packageName: Property<String>
     val cmakeProjectName: Property<String>
+    val cmakeVersion: Property<String>
 }
