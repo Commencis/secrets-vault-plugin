@@ -7,7 +7,6 @@ import com.commencis.secretsvaultplugin.utils.CodeGenerator
 import com.commencis.secretsvaultplugin.utils.EMPTY_STRING
 import com.commencis.secretsvaultplugin.utils.Utils
 import com.commencis.secretsvaultplugin.utils.capitalize
-import kotlinx.serialization.json.Json
 import org.gradle.api.DefaultTask
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.InputDirectory
@@ -16,6 +15,7 @@ import org.gradle.api.tasks.TaskAction
 import java.io.File
 import java.io.IOException
 import java.nio.charset.Charset
+import kotlinx.serialization.json.Json
 
 private const val SOURCE_SET_TEMPLATE = "src/%1\$s/%2\$s/"
 private const val PACKAGE_PLACEHOLDER = "YOUR_PACKAGE_NAME"
@@ -180,6 +180,8 @@ internal abstract class KeepSecretsTask : DefaultTask() {
     private fun copyCppFiles(flavor: String) {
         runCatching {
             val appSignaturesCodeBlock = secretsVaultExtension.appSignatures.get().map { appSignature ->
+                appSignature.replace(":", EMPTY_STRING)
+            }.map { appSignature ->
                 Utils.encodeSecret(appSignature, secretsVaultExtension.obfuscationKey.get())
             }.let { encodedAppSignatures ->
                 codeGenerator.getAppSignatureCheck(encodedAppSignatures)
