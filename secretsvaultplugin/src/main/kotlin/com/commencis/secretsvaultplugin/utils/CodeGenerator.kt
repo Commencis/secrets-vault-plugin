@@ -57,16 +57,28 @@ internal class CodeGenerator {
      * @return a string containing the generated CMakeLists code
      */
     fun getCMakeListsCode(flavor: String, isFirstFlavor: Boolean = false): String {
-        val elseText = if (!isFirstFlavor) "else" else ""
-        return """
-            |${elseText}if (FLAVOR STREQUAL "$flavor")
+        val elseText = if (!isFirstFlavor) "else" else EMPTY_STRING
+        val conditionText = if (flavor == "main") EMPTY_STRING else "${elseText}if (FLAVOR STREQUAL \"$flavor\")"
+        val flavorSecretsPathPrefix = if (flavor == "main") EMPTY_STRING else "../../$flavor/cpp/"
+        return if (conditionText.isEmpty()) {
+            """
+            |add_library(
+            |        secrets
+            |        SHARED
+            |        secrets.cpp
+            |)
+        """.trimMargin()
+        } else {
+            """
+            |
+            |$conditionText
             |    add_library(
             |            secrets
             |            SHARED
-            |            ../../$flavor/cpp/secrets.cpp
+            |            ${flavorSecretsPathPrefix}secrets.cpp
             |    )
-            |
         """.trimMargin()
+        }
     }
 
     /**

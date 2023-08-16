@@ -9,9 +9,3 @@ project(PROJECT_NAME_PLACEHOLDER)
 # define multiple libraries by adding multiple add_library() commands,
 # and CMake builds them for you. When you build your app, Gradle
 # automatically packages shared libraries with your APK.
-add_library( # Specifies the name of the library.
-             mainsecrets
-             # Sets the library as a shared library.
-             SHARED
-             # Provides a relative path to your source file(s).
-             secrets.cpp )

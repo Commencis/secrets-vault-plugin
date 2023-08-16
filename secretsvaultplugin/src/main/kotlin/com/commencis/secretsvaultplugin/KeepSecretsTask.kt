@@ -221,6 +221,11 @@ internal abstract class KeepSecretsTask : DefaultTask() {
                         .replace(PROJECT_NAME_PLACEHOLDER, secretsVaultExtension.cmakeProjectName.get())
                         .replace(CMAKE_VERSION_PLACEHOLDER, secretsVaultExtension.cmakeVersion.get())
                 )
+                if (flavors.contains(MAIN_SOURCE_SET_NAME)) {
+                    textBuilder.append(
+                        codeGenerator.getCMakeListsCode(flavor = MAIN_SOURCE_SET_NAME, isFirstFlavor = false)
+                    )
+                }
                 flavors.forEachIndexed { index, flavor ->
                     if (flavor == MAIN_SOURCE_SET_NAME) {
                         return@forEachIndexed
@@ -228,7 +233,7 @@ internal abstract class KeepSecretsTask : DefaultTask() {
                     textBuilder.append(codeGenerator.getCMakeListsCode(flavor = flavor, index == 0))
                 }
                 if (flavors.size > 1) {
-                    textBuilder.append("endif()\n")
+                    textBuilder.append("\nendif()\n")
                 }
                 val destination = getCppDestination(MAIN_SOURCE_SET_NAME, fileName = file.name)
                 writeTextToFile(destination, textBuilder.toString())
