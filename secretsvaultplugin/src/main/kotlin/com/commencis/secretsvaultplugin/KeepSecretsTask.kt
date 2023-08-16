@@ -236,7 +236,7 @@ internal abstract class KeepSecretsTask : DefaultTask() {
         runCatching {
             project.file("${pluginSourceFolder.get().path}/kotlin/").listFiles()?.forEach { file ->
                 var text = file.readText(Charset.defaultCharset())
-                val secretsFilePrefix = if (flavor == MAIN_SOURCE_SET_NAME) MAIN_SOURCE_SET_NAME else ""
+                val secretsFilePrefix = if (flavor == MAIN_SOURCE_SET_NAME) MAIN_SOURCE_SET_NAME else EMPTY_STRING
                 text = text.replace(PACKAGE_PLACEHOLDER, packageName)
                     .replace(SECRETS_FILE_PLACEHOLDER, secretsFilePrefix)
                     .replace(SECRETS_CLASS_NAME_PLACEHOLDER, secretsFilePrefix.capitalize())
@@ -268,7 +268,7 @@ internal abstract class KeepSecretsTask : DefaultTask() {
         copyCppFiles(flavor)
         copyKotlinFile(flavor)
 
-        val secretsFilePrefix = if (flavor == MAIN_SOURCE_SET_NAME) MAIN_SOURCE_SET_NAME else ""
+        val secretsFilePrefix = if (flavor == MAIN_SOURCE_SET_NAME) MAIN_SOURCE_SET_NAME else EMPTY_STRING
         val secretsKotlin = getKotlinDestination(
             flavor = flavor,
             fileName = secretsFilePrefix.capitalize() + KOTLIN_FILE_NAME
@@ -277,7 +277,7 @@ internal abstract class KeepSecretsTask : DefaultTask() {
         // Append Kotlin code
         val kotlinText = secretsKotlin.readText(Charset.defaultCharset()).substringBeforeLast('}')
         secretsKotlin.writeText(kotlinText, Charset.defaultCharset())
-        secretsKotlin.appendText(secrets.joinToString("") { codeGenerator.getKotlinCode(it.key) })
+        secretsKotlin.appendText(secrets.joinToString(EMPTY_STRING) { codeGenerator.getKotlinCode(it.key) })
         secretsKotlin.appendText("}\n")
 
         // Append CPP code
@@ -299,7 +299,7 @@ internal abstract class KeepSecretsTask : DefaultTask() {
             val cppKeyName = Utils.getCppName(key)
             secretsCpp.appendText(codeGenerator.getCppCode(kotlinPackage, cppKeyName, obfuscatedValue, flavor))
         }
-        val secretsPrefix = if (flavor == MAIN_SOURCE_SET_NAME) MAIN_SOURCE_SET_NAME.capitalize() else ""
+        val secretsPrefix = if (flavor == MAIN_SOURCE_SET_NAME) MAIN_SOURCE_SET_NAME.capitalize() else EMPTY_STRING
         logSuccess(
             "You can now get your secret key for flavor {} by calling : {}Secrets().getYourSecretKeyName()",
             flavor,
