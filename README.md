@@ -89,6 +89,9 @@ Access your secret key by calling :
 val key = MainSecrets().getYourSecretKeyName()
 ```
 
+> Note: Ensure you run the `./gradlew keepSecrets` task before specifying the path of the CMakeLists file to avoid Gradle sync errors.
+
+
 # 4) Flavor-specific secrets (Optional)
 If you are working on multi-flavor projects and have flavor-specific secrets, you need to pass arguments to CMake in your `build.gradle[.kts]` file. Follow the steps below:
 
