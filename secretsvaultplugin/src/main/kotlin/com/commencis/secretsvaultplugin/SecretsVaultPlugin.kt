@@ -3,10 +3,10 @@ package com.commencis.secretsvaultplugin
 import com.commencis.secretsvaultplugin.extensions.CMakeExtension
 import com.commencis.secretsvaultplugin.extensions.SecretsVaultExtension
 import com.commencis.secretsvaultplugin.utils.Utils
+import kotlinx.serialization.json.Json
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.tasks.Copy
-import kotlinx.serialization.json.Json
 
 // Tasks
 private const val TASK_GROUP = "secrets vault"
