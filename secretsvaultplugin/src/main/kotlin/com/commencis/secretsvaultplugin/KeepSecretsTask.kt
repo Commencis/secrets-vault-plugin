@@ -34,6 +34,7 @@ private const val MAIN_SOURCE_SET_SECRETS_FILE_NAME = "MainSecrets"
 private const val DEFAULT_SECRETS_FILE_NAME = "Secrets"
 private const val TEMP_KOTLIN_INJECTABLE_FILE_NAME = "SecretsInjectable.kt"
 private const val TEMP_KOTLIN_NOT_INJECTABLE_FILE_NAME = "Secrets.kt"
+private const val DEFAULT_CMAKE_ARGUMENT_NAME = "FLAVOR"
 
 // Ansi Colors
 private const val ANSI_COLOR_RESET = "\u001B[0m"
@@ -56,7 +57,7 @@ internal abstract class KeepSecretsTask : DefaultTask() {
     /**
      * Map containing the source sets and their respective secrets file names
      */
-    private var sourceSetToSecretFileMap: Map<SecretsSourceSet, String>? = null
+    private var sourceSetToSecretFileMap: Map<SecretsSourceSet, Pair<SecretsFileName, CMakeArgument>>? = null
 
     /**
      * Plugin source folder that has the cpp and kotlin files
@@ -187,7 +188,7 @@ internal abstract class KeepSecretsTask : DefaultTask() {
         val content = mappingFile.readText(Charsets.UTF_8)
         runCatching {
             sourceSetToSecretFileMap = json.get().decodeFromString<SourceSetToSecretFileMappingArray>(content).toMap()
-            if (sourceSetToSecretFileMap?.containsValue(MAIN_SOURCE_SET_SECRETS_FILE_NAME) == true) {
+            if (sourceSetToSecretFileMap?.any { it.value.first.name == MAIN_SOURCE_SET_SECRETS_FILE_NAME } == true) {
                 logger.error(
                     """
                         |The 'MainSecrets' file name is reserved for the main source set.
@@ -303,25 +304,30 @@ internal abstract class KeepSecretsTask : DefaultTask() {
                         codeGenerator.getCMakeListsCode(
                             flavor = MAIN_SOURCE_SET_NAME,
                             mappingFileName = fileName,
+                            cmakeArgumentName = DEFAULT_CMAKE_ARGUMENT_NAME,
                             isFirstFlavor = false,
                         )
                     )
                 }
-                flavors.forEachIndexed { index, flavor ->
-                    if (flavor == MAIN_SOURCE_SET_NAME) {
-                        return@forEachIndexed
-                    }
-                    val fileName = getKotlinSecretsFileName(flavor).removeSuffix(KOTLIN_FILE_NAME_SUFFIX)
-                    textBuilder.append(
-                        codeGenerator.getCMakeListsCode(
-                            flavor = flavor,
-                            mappingFileName = fileName,
-                            index == 0,
+                flavors.groupBy { getCmakeArgumentName(it) }.forEach { map ->
+                    val (cMakeArgument, flavorList) = map
+                    flavorList.forEachIndexed { index, flavor ->
+                        if (flavor == MAIN_SOURCE_SET_NAME) {
+                            return@forEachIndexed
+                        }
+                        val fileName = getKotlinSecretsFileName(flavor).removeSuffix(KOTLIN_FILE_NAME_SUFFIX)
+                        textBuilder.append(
+                            codeGenerator.getCMakeListsCode(
+                                flavor = flavor,
+                                mappingFileName = fileName,
+                                cmakeArgumentName = cMakeArgument,
+                                index == 0,
+                            )
                         )
-                    )
-                }
-                if (flavors.size > 1) {
-                    textBuilder.append("\nendif()\n")
+                    }
+                    if (flavorList.filter { flavor -> flavor != MAIN_SOURCE_SET_NAME }.size > 1) {
+                        textBuilder.append("\nendif()\n")
+                    }
                 }
                 val destination = getCppDestination(MAIN_SOURCE_SET_NAME, fileName = file.name)
                 writeTextToFile(destination, textBuilder.toString())
@@ -376,10 +382,22 @@ internal abstract class KeepSecretsTask : DefaultTask() {
         val secretsFilePrefix = if (flavor == MAIN_SOURCE_SET_NAME) {
             MAIN_SOURCE_SET_SECRETS_FILE_NAME
         } else {
-            sourceSetToSecretFileMap?.getOrDefault(SecretsSourceSet(flavor), DEFAULT_SECRETS_FILE_NAME)
-                ?: DEFAULT_SECRETS_FILE_NAME
+            sourceSetToSecretFileMap?.get(SecretsSourceSet(flavor))?.first?.name ?: DEFAULT_SECRETS_FILE_NAME
         }
         return secretsFilePrefix.capitalize() + KOTLIN_FILE_NAME_SUFFIX
+    }
+
+    /**
+     * Retrieves the CMake argument name based on the given flavor.
+     *
+     * If no mapping exists for the given flavor, a default argument name will be used.
+     *
+     * @param flavor The source set or build flavor for which the secrets file name should be retrieved.
+     * @return The CMake argument name for the provided flavor.
+     */
+    private fun getCmakeArgumentName(flavor: String): String {
+        return sourceSetToSecretFileMap?.get(SecretsSourceSet(flavor))?.second?.argumentName
+            ?: DEFAULT_CMAKE_ARGUMENT_NAME
     }
 
     /**
