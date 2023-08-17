@@ -1,9 +1,9 @@
 package YOUR_PACKAGE_NAME
 
-class SECRETS_CLASS_NAME_PREFIXSecrets {
+class SECRETS_CLASS_NAME {
     companion object {
         init {
-            System.loadLibrary("SECRETS_FILE_PREFIXsecrets")
+            System.loadLibrary("secrets")
         }
     }
 }
