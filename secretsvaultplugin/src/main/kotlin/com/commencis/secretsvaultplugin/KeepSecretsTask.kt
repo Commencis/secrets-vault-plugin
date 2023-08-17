@@ -79,7 +79,7 @@ internal abstract class KeepSecretsTask : DefaultTask() {
      * Provides lazy access to the [CMakeExtension] of the project.
      */
     private val cMakeExtension by lazy {
-        secretsVaultExtension.cmake
+        secretsVaultExtension.cmake.get()
     }
 
     /**
@@ -292,8 +292,8 @@ internal abstract class KeepSecretsTask : DefaultTask() {
                 }
                 val textBuilder = StringBuilder(
                     file.readText(Charset.defaultCharset())
-                        .replace(PROJECT_NAME_PLACEHOLDER, cMakeExtension.cmakeProjectName.get())
-                        .replace(CMAKE_VERSION_PLACEHOLDER, cMakeExtension.cmakeVersion.get())
+                        .replace(PROJECT_NAME_PLACEHOLDER, cMakeExtension.projectName.get())
+                        .replace(CMAKE_VERSION_PLACEHOLDER, cMakeExtension.version.get())
                 )
                 if (flavors.contains(MAIN_SOURCE_SET_NAME)) {
                     val fileName = getKotlinSecretsFileName(MAIN_SOURCE_SET_NAME).removeSuffix(KOTLIN_FILE_NAME_SUFFIX)

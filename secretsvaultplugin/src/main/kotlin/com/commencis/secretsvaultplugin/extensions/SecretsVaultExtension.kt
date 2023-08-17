@@ -30,5 +30,5 @@ internal interface SecretsVaultExtension {
     val appSignatures: ListProperty<String>
     val packageName: Property<String>
     val makeInjectable: Property<Boolean>
-    val cmake: CMakeExtension
+    val cmake: Property<CMakeExtension>
 }
