@@ -1,5 +1,7 @@
 package com.commencis.secretsvaultplugin.utils
 
+import java.util.Locale
+
 /**
  * Placeholder string that is used in the generated C++ code
  * to indicate where the app signature check code should be inserted.
@@ -53,17 +55,18 @@ internal class CodeGenerator {
      * Generates CMakeLists code for the given flavor and whether it is the first flavor.
      *
      * @param flavor the flavor of the app
+     * @param mappingFileName the file name of the mapped secrets file for the source set
      * @param isFirstFlavor whether this is the first flavor
      * @return a string containing the generated CMakeLists code
      */
-    fun getCMakeListsCode(flavor: String, isFirstFlavor: Boolean = false): String {
+    fun getCMakeListsCode(flavor: String, mappingFileName: String, isFirstFlavor: Boolean = false): String {
         val elseText = if (!isFirstFlavor) "else" else EMPTY_STRING
         val conditionText = if (flavor == "main") EMPTY_STRING else "${elseText}if (FLAVOR STREQUAL \"$flavor\")"
         val flavorSecretsPathPrefix = if (flavor == "main") EMPTY_STRING else "../../$flavor/cpp/"
         return if (conditionText.isEmpty()) {
             """
             |add_library(
-            |        secrets
+            |        ${mappingFileName.lowercase(Locale.ENGLISH)}
             |        SHARED
             |        secrets.cpp
             |)
@@ -73,7 +76,7 @@ internal class CodeGenerator {
             |
             |$conditionText
             |    add_library(
-            |            secrets
+            |            ${mappingFileName.lowercase(Locale.ENGLISH)}
             |            SHARED
             |            ${flavorSecretsPathPrefix}secrets.cpp
             |    )

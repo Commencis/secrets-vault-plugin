@@ -12,6 +12,9 @@ import java.io.File
  * of length defined by [OBFUSCATION_KEY_LENGTH].
  * @property secretsFile The name of the secrets file.
  * If not specified, the default name [DEFAULT_SECRETS_FILE_NAME] is used.
+ * @property sourceSetSecretsMappingFile The name of the map file that maps source sets to their respective
+ * secrets files. If not specified, the default mapping is used. For all source sets except the main source set,
+ * secrets files are named Secrets.kt.
  * @property appSignatures A list of application signatures.  If not specified, an empty list is used.
  * @property packageName The name of the package. If not specified, an empty string [EMPTY_STRING] is used.
  * @property cmakeProjectName The name of the CMAKE project.
@@ -21,6 +24,7 @@ import java.io.File
 internal interface SecretsVaultExtension {
     val obfuscationKey: Property<String>
     val secretsFile: Property<File>
+    val sourceSetSecretsMappingFile: Property<File>
     val appSignatures: ListProperty<String>
     val packageName: Property<String>
     val cmakeProjectName: Property<String>
