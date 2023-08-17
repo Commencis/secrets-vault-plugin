@@ -17,6 +17,9 @@ import java.io.File
  * secrets files are named Secrets.kt.
  * @property appSignatures A list of application signatures.  If not specified, an empty list is used.
  * @property packageName The name of the package. If not specified, an empty string [EMPTY_STRING] is used.
+ * @property makeInjectable Specifies whether the generated Kotlin class should include the `@Inject`
+ * annotation for its constructor. When set to true, the class will be made injectable, facilitating its integration
+ * with dependency injection frameworks such as Hilt and Dagger. If not specified, the default value is `false`.
  * @property cmake The CMake related configurations for the SecretVault. This includes properties like
  * the project name and version of CMake being used. Refer to [CMakeExtension] for detailed properties.
  */
@@ -26,5 +29,6 @@ internal interface SecretsVaultExtension {
     val sourceSetSecretsMappingFile: Property<File>
     val appSignatures: ListProperty<String>
     val packageName: Property<String>
+    val makeInjectable: Property<Boolean>
     val cmake: CMakeExtension
 }

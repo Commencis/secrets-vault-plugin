@@ -17,6 +17,7 @@ private const val EXTENSION_NAME = "secretsVault"
 
 // Defaults
 private const val DEFAULT_CMAKE_VERSION = "3.4.1"
+private const val DEFAULT_MAKE_INJECTABLE_VALUE = false
 
 /**
  * Represents the default file name for the secrets file.
@@ -38,6 +39,7 @@ internal class SecretsVaultPlugin : Plugin<Project> {
             obfuscationKey.convention(Utils.generateObfuscationKey())
             secretsFile.convention(project.file(DEFAULT_SECRETS_FILE_NAME))
             appSignatures.convention(emptyList())
+            makeInjectable.convention(DEFAULT_MAKE_INJECTABLE_VALUE)
             cmake.cmakeProjectName.convention(project.name)
             cmake.cmakeVersion.convention(DEFAULT_CMAKE_VERSION)
         }
