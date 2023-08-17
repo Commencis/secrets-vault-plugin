@@ -38,8 +38,8 @@ internal class SecretsVaultPlugin : Plugin<Project> {
             obfuscationKey.convention(Utils.generateObfuscationKey())
             secretsFile.convention(project.file(DEFAULT_SECRETS_FILE_NAME))
             appSignatures.convention(emptyList())
-            cmakeProjectName.convention(project.name)
-            cmakeVersion.convention(DEFAULT_CMAKE_VERSION)
+            cmake.cmakeProjectName.convention(project.name)
+            cmake.cmakeVersion.convention(DEFAULT_CMAKE_VERSION)
         }
 
         /**
