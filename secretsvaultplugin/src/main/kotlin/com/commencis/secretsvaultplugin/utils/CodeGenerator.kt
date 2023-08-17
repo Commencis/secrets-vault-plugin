@@ -87,7 +87,7 @@ internal class CodeGenerator {
             |        SHARED
             |        secrets.cpp
             |)
-        """.trimMargin()
+            """.trimMargin()
         } else {
             """
             |
@@ -97,7 +97,7 @@ internal class CodeGenerator {
             |            SHARED
             |            ${sourceSetSecretsPathPrefix}secrets.cpp
             |    )
-        """.trimMargin()
+            """.trimMargin()
         }
     }
 

@@ -7,6 +7,7 @@ import com.commencis.secretsvaultplugin.utils.CodeGenerator
 import com.commencis.secretsvaultplugin.utils.EMPTY_STRING
 import com.commencis.secretsvaultplugin.utils.Utils
 import com.commencis.secretsvaultplugin.utils.capitalize
+import kotlinx.serialization.json.Json
 import org.gradle.api.DefaultTask
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.InputDirectory
@@ -16,7 +17,6 @@ import java.io.File
 import java.io.IOException
 import java.nio.charset.Charset
 import java.util.Locale
-import kotlinx.serialization.json.Json
 
 internal const val MAIN_SOURCE_SET_NAME = "main"
 
@@ -327,7 +327,7 @@ internal abstract class KeepSecretsTask : DefaultTask() {
                             )
                         )
                     }
-                    if (sourceSetList.filter { sourceSet -> sourceSet != mainSourceSet }.size > 1) {
+                    if (sourceSetList.count { sourceSet -> sourceSet != mainSourceSet } > 1) {
                         textBuilder.append("\nendif()\n")
                     }
                 }
