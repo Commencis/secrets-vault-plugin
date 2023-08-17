@@ -15,6 +15,7 @@ import org.gradle.api.tasks.TaskAction
 import java.io.File
 import java.io.IOException
 import java.nio.charset.Charset
+import java.util.Locale
 import kotlinx.serialization.json.Json
 
 private const val SOURCE_SET_TEMPLATE = "src/%1\$s/%2\$s/"
@@ -24,6 +25,7 @@ private const val OBFUSCATION_KEY_PLACEHOLDER = "OBFUSCATION_KEY_PLACEHOLDER"
 private const val PROJECT_NAME_PLACEHOLDER = "PROJECT_NAME_PLACEHOLDER"
 private const val CMAKE_VERSION_PLACEHOLDER = "CMAKE_VERSION_PLACEHOLDER"
 private const val EXTERNAL_METHODS_PLACEHOLDER = "EXTERNAL_METHODS_PLACEHOLDER"
+private const val NATIVE_FILE_NAME_PLACEHOLDER = "NATIVE_FILE_NAME_PLACEHOLDER"
 private const val KOTLIN_FILE_NAME_SUFFIX = ".kt"
 private const val SECRETS_CPP_FILE_NAME = "secrets.cpp"
 private const val C_MAKE_LISTS_FILE_NAME = "CMakeLists.txt"
@@ -403,6 +405,9 @@ internal abstract class KeepSecretsTask : DefaultTask() {
 
         // Append Kotlin code
         val kotlinText = secretsKotlin.readText(Charset.defaultCharset()).replace(
+            NATIVE_FILE_NAME_PLACEHOLDER,
+            fileName.removeSuffix(KOTLIN_FILE_NAME_SUFFIX).lowercase(Locale.ENGLISH)
+        ).replace(
             EXTERNAL_METHODS_PLACEHOLDER,
             secrets.joinToString(EMPTY_STRING) { codeGenerator.getKotlinCode(it.key) }
         )
