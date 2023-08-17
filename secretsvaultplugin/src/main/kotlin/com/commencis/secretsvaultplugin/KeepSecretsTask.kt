@@ -345,7 +345,7 @@ internal abstract class KeepSecretsTask : DefaultTask() {
             var text = kotlinFile.readText(Charset.defaultCharset())
             val fileName = getKotlinSecretsFileName(flavor)
             text = text.replace(PACKAGE_PLACEHOLDER, packageName)
-                .replace(SECRETS_CLASS_NAME_PLACEHOLDER, fileName)
+                .replace(SECRETS_CLASS_NAME_PLACEHOLDER, fileName.removeSuffix(KOTLIN_FILE_NAME_SUFFIX))
             val destination = getKotlinDestination(
                 flavor = flavor,
                 fileName = fileName,
