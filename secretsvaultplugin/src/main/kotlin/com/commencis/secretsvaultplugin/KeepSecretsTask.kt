@@ -23,6 +23,7 @@ private const val SECRETS_CLASS_NAME_PLACEHOLDER = "SECRETS_CLASS_NAME"
 private const val OBFUSCATION_KEY_PLACEHOLDER = "OBFUSCATION_KEY_PLACEHOLDER"
 private const val PROJECT_NAME_PLACEHOLDER = "PROJECT_NAME_PLACEHOLDER"
 private const val CMAKE_VERSION_PLACEHOLDER = "CMAKE_VERSION_PLACEHOLDER"
+private const val EXTERNAL_METHODS_PLACEHOLDER = "EXTERNAL_METHODS_PLACEHOLDER"
 private const val KOTLIN_FILE_NAME_SUFFIX = ".kt"
 private const val SECRETS_CPP_FILE_NAME = "secrets.cpp"
 private const val C_MAKE_LISTS_FILE_NAME = "CMakeLists.txt"
@@ -401,10 +402,11 @@ internal abstract class KeepSecretsTask : DefaultTask() {
         )
 
         // Append Kotlin code
-        val kotlinText = secretsKotlin.readText(Charset.defaultCharset()).substringBeforeLast('}')
+        val kotlinText = secretsKotlin.readText(Charset.defaultCharset()).replace(
+            EXTERNAL_METHODS_PLACEHOLDER,
+            secrets.joinToString(EMPTY_STRING) { codeGenerator.getKotlinCode(it.key) }
+        )
         secretsKotlin.writeText(kotlinText, Charset.defaultCharset())
-        secretsKotlin.appendText(secrets.joinToString(EMPTY_STRING) { codeGenerator.getKotlinCode(it.key) })
-        secretsKotlin.appendText("}\n")
 
         // Append CPP code
         var kotlinPackage = Utils.getKotlinFilePackage(secretsKotlin)
