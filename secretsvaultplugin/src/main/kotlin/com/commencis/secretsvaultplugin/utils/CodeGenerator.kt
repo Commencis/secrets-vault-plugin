@@ -56,12 +56,22 @@ internal class CodeGenerator {
      *
      * @param flavor the flavor of the app
      * @param mappingFileName the file name of the mapped secrets file for the source set
+     * @param cmakeArgumentName the name of CMake argument to differentiate between source sets.
      * @param isFirstFlavor whether this is the first flavor
      * @return a string containing the generated CMakeLists code
      */
-    fun getCMakeListsCode(flavor: String, mappingFileName: String, isFirstFlavor: Boolean = false): String {
+    fun getCMakeListsCode(
+        flavor: String,
+        mappingFileName: String,
+        cmakeArgumentName: String,
+        isFirstFlavor: Boolean = false,
+    ): String {
         val elseText = if (!isFirstFlavor) "else" else EMPTY_STRING
-        val conditionText = if (flavor == "main") EMPTY_STRING else "${elseText}if (FLAVOR STREQUAL \"$flavor\")"
+        val conditionText = if (flavor == "main") {
+            EMPTY_STRING
+        } else {
+            "${elseText}if ($cmakeArgumentName STREQUAL \"$flavor\")"
+        }
         val flavorSecretsPathPrefix = if (flavor == "main") EMPTY_STRING else "../../$flavor/cpp/"
         return if (conditionText.isEmpty()) {
             """
