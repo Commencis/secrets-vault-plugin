@@ -29,6 +29,8 @@ private const val C_MAKE_LISTS_FILE_NAME = "CMakeLists.txt"
 private const val MAIN_SOURCE_SET_NAME = "main"
 private const val MAIN_SOURCE_SET_SECRETS_FILE_NAME = "MainSecrets"
 private const val DEFAULT_SECRETS_FILE_NAME = "Secrets"
+private const val TEMP_KOTLIN_INJECTABLE_FILE_NAME = "SecretsInjectable.kt"
+private const val TEMP_KOTLIN_NOT_INJECTABLE_FILE_NAME = "Secrets.kt"
 
 // Ansi Colors
 private const val ANSI_COLOR_RESET = "\u001B[0m"
@@ -330,17 +332,24 @@ internal abstract class KeepSecretsTask : DefaultTask() {
 
     private fun copyKotlinFile(flavor: String) {
         runCatching {
-            project.file("${pluginSourceFolder.get().path}/kotlin/").listFiles()?.forEach { file ->
-                var text = file.readText(Charset.defaultCharset())
-                val fileName = getKotlinSecretsFileName(flavor)
-                text = text.replace(PACKAGE_PLACEHOLDER, packageName)
-                    .replace(SECRETS_CLASS_NAME_PLACEHOLDER, fileName)
-                val destination = getKotlinDestination(
-                    flavor = flavor,
-                    fileName = fileName,
-                )
-                writeTextToFile(destination, text)
+            val kotlinFileName = if (secretsVaultExtension.makeInjectable.get()) {
+                TEMP_KOTLIN_INJECTABLE_FILE_NAME
+            } else {
+                TEMP_KOTLIN_NOT_INJECTABLE_FILE_NAME
             }
+            val kotlinFiles = project.file("${pluginSourceFolder.get().path}/kotlin/").listFiles()
+            val kotlinFile = kotlinFiles?.firstOrNull { file ->
+                file.name == kotlinFileName
+            } ?: throw IOException("Kotlin file that will be copied not found")
+            var text = kotlinFile.readText(Charset.defaultCharset())
+            val fileName = getKotlinSecretsFileName(flavor)
+            text = text.replace(PACKAGE_PLACEHOLDER, packageName)
+                .replace(SECRETS_CLASS_NAME_PLACEHOLDER, fileName)
+            val destination = getKotlinDestination(
+                flavor = flavor,
+                fileName = fileName,
+            )
+            writeTextToFile(destination, text)
         }.onFailure { throwable ->
             if (throwable is IOException) {
                 logger.error("Error occurred while copying Kotlin file: ${throwable.message}")
