@@ -1,5 +1,5 @@
-#ifndef SECRETS_H
-#define SECRETS_H
+#ifndef SECRETS_UTILS_H
+#define SECRETS_UTILS_H
 
 #include "sha256.cpp"
 #include <jni.h>

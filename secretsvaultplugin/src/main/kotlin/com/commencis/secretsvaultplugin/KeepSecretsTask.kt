@@ -28,9 +28,12 @@ private const val PROJECT_NAME_PLACEHOLDER = "PROJECT_NAME_PLACEHOLDER"
 private const val CMAKE_VERSION_PLACEHOLDER = "CMAKE_VERSION_PLACEHOLDER"
 private const val EXTERNAL_METHODS_PLACEHOLDER = "EXTERNAL_METHODS_PLACEHOLDER"
 private const val NATIVE_FILE_NAME_PLACEHOLDER = "NATIVE_FILE_NAME_PLACEHOLDER"
+private const val COMMON_FOLDER_PATH_PREFIX_PLACEHOLDER = "COMMON_FOLDER_PATH_PREFIX_PLACEHOLDER"
+private const val COMMON_FOLDER_PATH_PREFIX = "../../main/cpp/"
 private const val KOTLIN_FILE_NAME_SUFFIX = ".kt"
 private const val SECRETS_CPP_FILE_NAME = "secrets.cpp"
 private const val C_MAKE_LISTS_FILE_NAME = "CMakeLists.txt"
+private const val SECRETS_UTIL_CPP_FILE_NAME = "secrets_util.cpp"
 private const val MAIN_SOURCE_SET_SECRETS_FILE_NAME = "MainSecrets"
 private const val DEFAULT_SECRETS_FILE_NAME = "Secrets"
 private const val TEMP_KOTLIN_INJECTABLE_FILE_NAME = "SecretsInjectable.kt"
@@ -117,6 +120,7 @@ internal abstract class KeepSecretsTask : DefaultTask() {
         }
         val secrets = secretsMap ?: return
         copyCMakeListsFile(secrets.keys)
+        copyCommonCppFiles()
         secrets.forEach { (sourceSet, secretList) ->
             keepSecrets(sourceSet, secretList)
         }
@@ -223,10 +227,15 @@ internal abstract class KeepSecretsTask : DefaultTask() {
      *
      * @param sourceSet the source set or build flavor for which the destination file should be returned
      * @param fileName the name of the file
+     * @param pathSuffix the suffix to be appended to the path before the file name
      * @return the destination file for the CPP code
      */
-    private fun getCppDestination(sourceSet: SecretsSourceSet, fileName: String): File {
-        return project.file(SOURCE_SET_TEMPLATE.format(sourceSet.sourceSet, "cpp") + fileName)
+    private fun getCppDestination(
+        sourceSet: SecretsSourceSet,
+        fileName: String,
+        pathSuffix: String = EMPTY_STRING,
+    ): File {
+        return project.file(SOURCE_SET_TEMPLATE.format(sourceSet.sourceSet, "cpp") + pathSuffix + fileName)
     }
 
     /**
@@ -253,11 +262,9 @@ internal abstract class KeepSecretsTask : DefaultTask() {
     }
 
     /**
-     * Copies CPP files to the appropriate destination for the specified source set
-     *
-     * @param sourceSet the source set or build flavor for which the files should be copied
+     * Copies common CPP files to the appropriate destination of the main source set
      */
-    private fun copyCppFiles(sourceSet: SecretsSourceSet) {
+    private fun copyCommonCppFiles() {
         runCatching {
             val appSignaturesCodeBlock = secretsVaultExtension.appSignatures.get().map { appSignature ->
                 Utils.encodeSecret(
@@ -267,19 +274,47 @@ internal abstract class KeepSecretsTask : DefaultTask() {
             }.let { encodedAppSignatures ->
                 codeGenerator.getAppSignatureCheck(encodedAppSignatures)
             }
-            project.file("${pluginSourceFolder.get().path}/cpp/").listFiles()?.forEach { file ->
-                if (file.name == C_MAKE_LISTS_FILE_NAME) {
-                    return@forEach
+            project.file("${pluginSourceFolder.get().path}/cpp/common/").listFiles()?.forEach { file ->
+                var text = file.readText(Charset.defaultCharset())
+                if (file.name == SECRETS_UTIL_CPP_FILE_NAME) {
+                    text = text.replace(OBFUSCATION_KEY_PLACEHOLDER, secretsVaultExtension.obfuscationKey.get())
+                        .replace(CHECK_APP_SIGNATURE_PLACEHOLDER, appSignaturesCodeBlock)
                 }
-                val text = file.readText(Charset.defaultCharset())
-                    .replace(OBFUSCATION_KEY_PLACEHOLDER, secretsVaultExtension.obfuscationKey.get())
-                    .replace(CHECK_APP_SIGNATURE_PLACEHOLDER, appSignaturesCodeBlock)
-                val destination = getCppDestination(sourceSet = sourceSet, fileName = file.name)
+                val destination = getCppDestination(
+                    sourceSet = SecretsSourceSet(MAIN_SOURCE_SET_NAME),
+                    fileName = file.name,
+                    pathSuffix = "common/",
+                )
                 writeTextToFile(destination, text)
             }
         }.onFailure { throwable ->
             if (throwable is IOException) {
                 logger.error("Error occurred while copying CPP files: ${throwable.message}")
+            }
+        }
+    }
+
+    /**
+     * Copies [SECRETS_CPP_FILE_NAME] file to the appropriate destination for the specified source set
+     *
+     * @param sourceSet the source set or build flavor for which the file should be copied
+     */
+    private fun copySecretCppFile(sourceSet: SecretsSourceSet) {
+        runCatching {
+            val secretsFile = project.file("${pluginSourceFolder.get().path}/cpp/$SECRETS_CPP_FILE_NAME")
+            val text = secretsFile.readText(Charset.defaultCharset()).replace(
+                oldValue = COMMON_FOLDER_PATH_PREFIX_PLACEHOLDER,
+                newValue = if (sourceSet == SecretsSourceSet(MAIN_SOURCE_SET_NAME)) {
+                    EMPTY_STRING
+                } else {
+                    COMMON_FOLDER_PATH_PREFIX
+                },
+            )
+            val destination = getCppDestination(sourceSet = sourceSet, fileName = SECRETS_CPP_FILE_NAME)
+            writeTextToFile(destination, text)
+        }.onFailure { throwable ->
+            if (throwable is IOException) {
+                logger.error("Error occurred while copying $SECRETS_CPP_FILE_NAME file: ${throwable.message}")
             }
         }
     }
@@ -292,49 +327,45 @@ internal abstract class KeepSecretsTask : DefaultTask() {
     private fun copyCMakeListsFile(sourceSets: Set<SecretsSourceSet>) {
         runCatching {
             val mainSourceSet = SecretsSourceSet(MAIN_SOURCE_SET_NAME)
-            project.file("${pluginSourceFolder.get().path}/cpp/").listFiles()?.forEach { file ->
-                if (file.name != C_MAKE_LISTS_FILE_NAME) {
-                    return@forEach
-                }
-                val textBuilder = StringBuilder(
-                    file.readText(Charset.defaultCharset())
-                        .replace(PROJECT_NAME_PLACEHOLDER, cMakeExtension.projectName.get())
-                        .replace(CMAKE_VERSION_PLACEHOLDER, cMakeExtension.version.get())
+            val file = project.file("${pluginSourceFolder.get().path}/cpp/$C_MAKE_LISTS_FILE_NAME")
+            val textBuilder = StringBuilder(
+                file.readText(Charset.defaultCharset())
+                    .replace(PROJECT_NAME_PLACEHOLDER, cMakeExtension.projectName.get())
+                    .replace(CMAKE_VERSION_PLACEHOLDER, cMakeExtension.version.get())
+            )
+            if (sourceSets.contains(mainSourceSet)) {
+                val fileName = getKotlinSecretsFileName(mainSourceSet).removeSuffix(KOTLIN_FILE_NAME_SUFFIX)
+                textBuilder.append(
+                    codeGenerator.getCMakeListsCode(
+                        sourceSet = mainSourceSet,
+                        mappingFileName = fileName,
+                        cmakeArgumentName = DEFAULT_CMAKE_ARGUMENT_NAME,
+                        isFirstSourceSet = false,
+                    )
                 )
-                if (sourceSets.contains(mainSourceSet)) {
-                    val fileName = getKotlinSecretsFileName(mainSourceSet).removeSuffix(KOTLIN_FILE_NAME_SUFFIX)
+            }
+            sourceSets.groupBy { getCmakeArgumentName(it) }.forEach { map ->
+                val (cMakeArgument, sourceSetList) = map
+                sourceSetList.forEachIndexed { index, sourceSet ->
+                    if (sourceSet == mainSourceSet) {
+                        return@forEachIndexed
+                    }
+                    val fileName = getKotlinSecretsFileName(sourceSet).removeSuffix(KOTLIN_FILE_NAME_SUFFIX)
                     textBuilder.append(
                         codeGenerator.getCMakeListsCode(
-                            sourceSet = mainSourceSet,
+                            sourceSet = sourceSet,
                             mappingFileName = fileName,
-                            cmakeArgumentName = DEFAULT_CMAKE_ARGUMENT_NAME,
-                            isFirstSourceSet = false,
+                            cmakeArgumentName = cMakeArgument,
+                            index == 0,
                         )
                     )
                 }
-                sourceSets.groupBy { getCmakeArgumentName(it) }.forEach { map ->
-                    val (cMakeArgument, sourceSetList) = map
-                    sourceSetList.forEachIndexed { index, sourceSet ->
-                        if (sourceSet == mainSourceSet) {
-                            return@forEachIndexed
-                        }
-                        val fileName = getKotlinSecretsFileName(sourceSet).removeSuffix(KOTLIN_FILE_NAME_SUFFIX)
-                        textBuilder.append(
-                            codeGenerator.getCMakeListsCode(
-                                sourceSet = sourceSet,
-                                mappingFileName = fileName,
-                                cmakeArgumentName = cMakeArgument,
-                                index == 0,
-                            )
-                        )
-                    }
-                    if (sourceSetList.count { sourceSet -> sourceSet != mainSourceSet } > 1) {
-                        textBuilder.append("\nendif()\n")
-                    }
+                if (sourceSetList.count { sourceSet -> sourceSet != mainSourceSet } > 1) {
+                    textBuilder.append("\nendif()\n")
                 }
-                val destination = getCppDestination(mainSourceSet, fileName = file.name)
-                writeTextToFile(destination, textBuilder.toString())
             }
+            val destination = getCppDestination(mainSourceSet, fileName = file.name)
+            writeTextToFile(destination, textBuilder.toString())
         }.onFailure { throwable ->
             if (throwable is IOException) {
                 logger.error("Error occurred while copying CMakeLists file: ${throwable.message}")
@@ -415,7 +446,7 @@ internal abstract class KeepSecretsTask : DefaultTask() {
             return
         }
 
-        copyCppFiles(sourceSet)
+        copySecretCppFile(sourceSet)
         copyKotlinFile(sourceSet)
 
         val fileName = getKotlinSecretsFileName(sourceSet)
