@@ -76,10 +76,10 @@ internal class CodeGenerator {
         val elseText = EMPTY_STRING.takeIf { isFirstSourceSet } ?: "else"
         val conditionText = EMPTY_STRING.takeIf {
             sourceSet == mainSourceSet
-        } ?: "${elseText}if ($cmakeArgumentName STREQUAL \"$sourceSet\")"
+        } ?: "${elseText}if ($cmakeArgumentName STREQUAL \"${sourceSet.sourceSet}\")"
         val sourceSetSecretsPathPrefix = EMPTY_STRING.takeIf {
             sourceSet == mainSourceSet
-        } ?: "../../$sourceSet/cpp/"
+        } ?: "../../${sourceSet.sourceSet}/cpp/"
         return if (conditionText.isEmpty()) {
             """
             |add_library(
