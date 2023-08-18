@@ -17,7 +17,7 @@ internal value class Secrets(val secrets: Array<Secret>)
  *
  * @property key The key of the secret
  * @property value The value of the secret
- * @property flavor The flavor of the secret, default is "main"
+ * @property sourceSet The source set of the secret, default is "main"
  */
 @Serializable
 internal data class Secret(
@@ -25,6 +25,6 @@ internal data class Secret(
     val key: String,
     @SerialName("value")
     val value: String,
-    @SerialName("flavor")
-    val flavor: String = "main",
+    @SerialName("sourceSet")
+    val sourceSet: SecretsSourceSet = SecretsSourceSet(MAIN_SOURCE_SET_NAME),
 )
