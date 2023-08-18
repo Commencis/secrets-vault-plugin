@@ -448,7 +448,14 @@ internal abstract class KeepSecretsTask : DefaultTask() {
                 return@forEach
             }
             val cppKeyName = Utils.getCppName(key)
-            secretsCpp.appendText(codeGenerator.getCppCode(kotlinPackage, cppKeyName, obfuscatedValue, flavor))
+            secretsCpp.appendText(
+                text = codeGenerator.getCppCode(
+                    packageName = kotlinPackage,
+                    keyName = cppKeyName,
+                    obfuscatedValue = obfuscatedValue,
+                    fileName = fileName.removeSuffix(KOTLIN_FILE_NAME_SUFFIX),
+                )
+            )
         }
         logSuccess(
             "You can now get your secret key for flavor {} by calling : {}().getYourSecretKeyName()",
