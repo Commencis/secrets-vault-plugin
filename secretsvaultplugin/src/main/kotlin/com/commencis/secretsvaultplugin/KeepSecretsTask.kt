@@ -260,9 +260,10 @@ internal abstract class KeepSecretsTask : DefaultTask() {
     private fun copyCppFiles(sourceSet: SecretsSourceSet) {
         runCatching {
             val appSignaturesCodeBlock = secretsVaultExtension.appSignatures.get().map { appSignature ->
-                appSignature.replace(":", EMPTY_STRING)
-            }.map { appSignature ->
-                Utils.encodeSecret(appSignature, secretsVaultExtension.obfuscationKey.get())
+                Utils.encodeSecret(
+                    secretKey = appSignature.replace(":", EMPTY_STRING),
+                    obfuscationKey = secretsVaultExtension.obfuscationKey.get(),
+                )
             }.let { encodedAppSignatures ->
                 codeGenerator.getAppSignatureCheck(encodedAppSignatures)
             }
@@ -349,7 +350,7 @@ internal abstract class KeepSecretsTask : DefaultTask() {
                 TEMP_KOTLIN_NOT_INJECTABLE_FILE_NAME
             }
             val kotlinFiles = project.file("${pluginSourceFolder.get().path}/kotlin/").listFiles()
-            val kotlinFile = kotlinFiles?.firstOrNull { file ->
+            val kotlinFile = kotlinFiles?.find { file ->
                 file.name == kotlinFileName
             } ?: throw IOException("Kotlin file that will be copied not found")
             var text = kotlinFile.readText(Charset.defaultCharset())
