@@ -18,6 +18,8 @@ import java.nio.charset.Charset
 import java.util.Locale
 import kotlinx.serialization.json.Json
 
+internal const val MAIN_SOURCE_SET_NAME = "main"
+
 private const val SOURCE_SET_TEMPLATE = "src/%1\$s/%2\$s/"
 private const val PACKAGE_PLACEHOLDER = "YOUR_PACKAGE_NAME"
 private const val SECRETS_CLASS_NAME_PLACEHOLDER = "SECRETS_CLASS_NAME"
@@ -29,12 +31,11 @@ private const val NATIVE_FILE_NAME_PLACEHOLDER = "NATIVE_FILE_NAME_PLACEHOLDER"
 private const val KOTLIN_FILE_NAME_SUFFIX = ".kt"
 private const val SECRETS_CPP_FILE_NAME = "secrets.cpp"
 private const val C_MAKE_LISTS_FILE_NAME = "CMakeLists.txt"
-private const val MAIN_SOURCE_SET_NAME = "main"
 private const val MAIN_SOURCE_SET_SECRETS_FILE_NAME = "MainSecrets"
 private const val DEFAULT_SECRETS_FILE_NAME = "Secrets"
 private const val TEMP_KOTLIN_INJECTABLE_FILE_NAME = "SecretsInjectable.kt"
 private const val TEMP_KOTLIN_NOT_INJECTABLE_FILE_NAME = "Secrets.kt"
-private const val DEFAULT_CMAKE_ARGUMENT_NAME = "FLAVOR"
+private const val DEFAULT_CMAKE_ARGUMENT_NAME = "sourceSet"
 
 // Ansi Colors
 private const val ANSI_COLOR_RESET = "\u001B[0m"
@@ -52,7 +53,7 @@ internal abstract class KeepSecretsTask : DefaultTask() {
     /**
      * Map containing the secrets
      */
-    private var secretsMap: Map<String, List<Secret>>? = null
+    private var secretsMap: Map<SecretsSourceSet, List<Secret>>? = null
 
     /**
      * Map containing the source sets and their respective secrets file names
@@ -116,8 +117,8 @@ internal abstract class KeepSecretsTask : DefaultTask() {
         }
         val secrets = secretsMap ?: return
         copyCMakeListsFile(secrets.keys)
-        secrets.forEach { (flavor, secretList) ->
-            keepSecrets(flavor, secretList)
+        secrets.forEach { (sourceSet, secretList) ->
+            keepSecrets(sourceSet, secretList)
         }
     }
 
@@ -161,19 +162,19 @@ internal abstract class KeepSecretsTask : DefaultTask() {
     private fun initSecretsFromFile(secretsFile: File) {
         val content = secretsFile.readText(Charsets.UTF_8)
         runCatching {
-            secretsMap = json.get().decodeFromString<Secrets>(content).secrets.groupBy { it.flavor }
+            secretsMap = json.get().decodeFromString<Secrets>(content).secrets.groupBy { it.sourceSet }
         }.onFailure { throwable ->
             logger.error(
                 """
                     |Error loading credentials from file due to: ${throwable.message}
                     |Please ensure that your credentials file follows this format:
                     |[
-                    |    { "key": "apiKey1", "value": "API_VALUE_1_DEVELOPMENT", "flavor": "dev" },
-                    |    { "key": "apiKey1", "value": "API_VALUE_1_PRODUCTION", "flavor": "prod" },
+                    |    { "key": "apiKey1", "value": "API_VALUE_1_DEVELOPMENT", "sourceSet": "dev" },
+                    |    { "key": "apiKey1", "value": "API_VALUE_1_PRODUCTION", "sourceSet": "prod" },
                     |    { "key": "apiKey2", "value": "API_VALUE_2_GENERAL" }
                     |]
                     |Each entry should include a 'key' and 'value'. 
-                    |If the key is specific to a particular environment, you can also include a 'flavor'.
+                    |If the key is specific to a particular environment, you can also include a 'sourceSet'.
                 """.trimMargin(),
             )
         }
@@ -220,24 +221,24 @@ internal abstract class KeepSecretsTask : DefaultTask() {
     /**
      * Get the destination file for the CPP code
      *
-     * @param flavor the build flavor for which the destination file should be returned
+     * @param sourceSet the source set or build flavor for which the destination file should be returned
      * @param fileName the name of the file
      * @return the destination file for the CPP code
      */
-    private fun getCppDestination(flavor: String, fileName: String): File {
-        return project.file(SOURCE_SET_TEMPLATE.format(flavor, "cpp") + fileName)
+    private fun getCppDestination(sourceSet: SecretsSourceSet, fileName: String): File {
+        return project.file(SOURCE_SET_TEMPLATE.format(sourceSet.sourceSet, "cpp") + fileName)
     }
 
     /**
      * Get the destination file for the Kotlin code
      *
-     * @param flavor the build flavor for which the destination file should be returned
+     * @param sourceSet the source set or build flavor for which the destination file should be returned
      * @param fileName the name of the file
      * @return the destination file for the Kotlin code
      */
-    private fun getKotlinDestination(flavor: String, fileName: String): File {
-        val kotlinPath = SOURCE_SET_TEMPLATE.format(flavor, "kotlin")
-        val javaPath = SOURCE_SET_TEMPLATE.format(flavor, "java")
+    private fun getKotlinDestination(sourceSet: SecretsSourceSet, fileName: String): File {
+        val kotlinPath = SOURCE_SET_TEMPLATE.format(sourceSet.sourceSet, "kotlin")
+        val javaPath = SOURCE_SET_TEMPLATE.format(sourceSet.sourceSet, "java")
         val basePath = kotlinPath.takeIf { project.file(kotlinPath).exists() } ?: javaPath
         val packagePath = packageName.replace(".", File.separator)
         val fullPath = basePath + packagePath
@@ -252,11 +253,11 @@ internal abstract class KeepSecretsTask : DefaultTask() {
     }
 
     /**
-     * Copies CPP files to the appropriate destination for the specified build flavor
+     * Copies CPP files to the appropriate destination for the specified source set
      *
-     * @param flavor the build flavor for which the files should be copied
+     * @param sourceSet the source set or build flavor for which the files should be copied
      */
-    private fun copyCppFiles(flavor: String) {
+    private fun copyCppFiles(sourceSet: SecretsSourceSet) {
         runCatching {
             val appSignaturesCodeBlock = secretsVaultExtension.appSignatures.get().map { appSignature ->
                 appSignature.replace(":", EMPTY_STRING)
@@ -272,7 +273,7 @@ internal abstract class KeepSecretsTask : DefaultTask() {
                 val text = file.readText(Charset.defaultCharset())
                     .replace(OBFUSCATION_KEY_PLACEHOLDER, secretsVaultExtension.obfuscationKey.get())
                     .replace(CHECK_APP_SIGNATURE_PLACEHOLDER, appSignaturesCodeBlock)
-                val destination = getCppDestination(flavor = flavor, fileName = file.name)
+                val destination = getCppDestination(sourceSet = sourceSet, fileName = file.name)
                 writeTextToFile(destination, text)
             }
         }.onFailure { throwable ->
@@ -283,12 +284,13 @@ internal abstract class KeepSecretsTask : DefaultTask() {
     }
 
     /**
-     * Copies the CMakeLists.txt file to the appropriate destination for all the provided build flavors
+     * Copies the CMakeLists.txt file to the appropriate destination for all the provided source sets
      *
-     * @param flavors the set of build flavors for which the file should be copied
+     * @param sourceSets the set of build source sets or flavors for which the file should be copied
      */
-    private fun copyCMakeListsFile(flavors: Set<String>) {
+    private fun copyCMakeListsFile(sourceSets: Set<SecretsSourceSet>) {
         runCatching {
+            val mainSourceSet = SecretsSourceSet(MAIN_SOURCE_SET_NAME)
             project.file("${pluginSourceFolder.get().path}/cpp/").listFiles()?.forEach { file ->
                 if (file.name != C_MAKE_LISTS_FILE_NAME) {
                     return@forEach
@@ -298,38 +300,38 @@ internal abstract class KeepSecretsTask : DefaultTask() {
                         .replace(PROJECT_NAME_PLACEHOLDER, cMakeExtension.projectName.get())
                         .replace(CMAKE_VERSION_PLACEHOLDER, cMakeExtension.version.get())
                 )
-                if (flavors.contains(MAIN_SOURCE_SET_NAME)) {
-                    val fileName = getKotlinSecretsFileName(MAIN_SOURCE_SET_NAME).removeSuffix(KOTLIN_FILE_NAME_SUFFIX)
+                if (sourceSets.contains(mainSourceSet)) {
+                    val fileName = getKotlinSecretsFileName(mainSourceSet).removeSuffix(KOTLIN_FILE_NAME_SUFFIX)
                     textBuilder.append(
                         codeGenerator.getCMakeListsCode(
-                            flavor = MAIN_SOURCE_SET_NAME,
+                            sourceSet = mainSourceSet,
                             mappingFileName = fileName,
                             cmakeArgumentName = DEFAULT_CMAKE_ARGUMENT_NAME,
-                            isFirstFlavor = false,
+                            isFirstSourceSet = false,
                         )
                     )
                 }
-                flavors.groupBy { getCmakeArgumentName(it) }.forEach { map ->
-                    val (cMakeArgument, flavorList) = map
-                    flavorList.forEachIndexed { index, flavor ->
-                        if (flavor == MAIN_SOURCE_SET_NAME) {
+                sourceSets.groupBy { getCmakeArgumentName(it) }.forEach { map ->
+                    val (cMakeArgument, sourceSetList) = map
+                    sourceSetList.forEachIndexed { index, sourceSet ->
+                        if (sourceSet == mainSourceSet) {
                             return@forEachIndexed
                         }
-                        val fileName = getKotlinSecretsFileName(flavor).removeSuffix(KOTLIN_FILE_NAME_SUFFIX)
+                        val fileName = getKotlinSecretsFileName(sourceSet).removeSuffix(KOTLIN_FILE_NAME_SUFFIX)
                         textBuilder.append(
                             codeGenerator.getCMakeListsCode(
-                                flavor = flavor,
+                                sourceSet = sourceSet,
                                 mappingFileName = fileName,
                                 cmakeArgumentName = cMakeArgument,
                                 index == 0,
                             )
                         )
                     }
-                    if (flavorList.filter { flavor -> flavor != MAIN_SOURCE_SET_NAME }.size > 1) {
+                    if (sourceSetList.filter { sourceSet -> sourceSet != mainSourceSet }.size > 1) {
                         textBuilder.append("\nendif()\n")
                     }
                 }
-                val destination = getCppDestination(MAIN_SOURCE_SET_NAME, fileName = file.name)
+                val destination = getCppDestination(mainSourceSet, fileName = file.name)
                 writeTextToFile(destination, textBuilder.toString())
             }
         }.onFailure { throwable ->
@@ -339,7 +341,7 @@ internal abstract class KeepSecretsTask : DefaultTask() {
         }
     }
 
-    private fun copyKotlinFile(flavor: String) {
+    private fun copyKotlinFile(sourceSet: SecretsSourceSet) {
         runCatching {
             val kotlinFileName = if (secretsVaultExtension.makeInjectable.get()) {
                 TEMP_KOTLIN_INJECTABLE_FILE_NAME
@@ -351,11 +353,11 @@ internal abstract class KeepSecretsTask : DefaultTask() {
                 file.name == kotlinFileName
             } ?: throw IOException("Kotlin file that will be copied not found")
             var text = kotlinFile.readText(Charset.defaultCharset())
-            val fileName = getKotlinSecretsFileName(flavor)
+            val fileName = getKotlinSecretsFileName(sourceSet)
             text = text.replace(PACKAGE_PLACEHOLDER, packageName)
                 .replace(SECRETS_CLASS_NAME_PLACEHOLDER, fileName.removeSuffix(KOTLIN_FILE_NAME_SUFFIX))
             val destination = getKotlinDestination(
-                flavor = flavor,
+                sourceSet = sourceSet,
                 fileName = fileName,
             )
             writeTextToFile(destination, text)
@@ -367,57 +369,57 @@ internal abstract class KeepSecretsTask : DefaultTask() {
     }
 
     /**
-     * Retrieves the Kotlin secrets file name based on the given flavor.
+     * Retrieves the Kotlin secrets file name based on the given source set.
      *
      * For the main source set, a predefined file name will be returned.
-     * For other flavors, the function will look up the file name from the source set mapping.
-     * If no mapping exists for the given flavor, a default file name will be used.
+     * For other source sets, the function will look up the file name from the source set mapping.
+     * If no mapping exists for the given source set, a default file name will be used.
      *
      * The result is then capitalized and appended with a Kotlin file name suffix.
      *
-     * @param flavor The source set or build flavor for which the secrets file name should be retrieved.
-     * @return The Kotlin secrets file name for the provided flavor.
+     * @param sourceSet The source set or build flavor for which the secrets file name should be retrieved.
+     * @return The Kotlin secrets file name for the provided source set.
      */
-    private fun getKotlinSecretsFileName(flavor: String): String {
-        val secretsFilePrefix = if (flavor == MAIN_SOURCE_SET_NAME) {
+    private fun getKotlinSecretsFileName(sourceSet: SecretsSourceSet): String {
+        val secretsFilePrefix = if (sourceSet == SecretsSourceSet(MAIN_SOURCE_SET_NAME)) {
             MAIN_SOURCE_SET_SECRETS_FILE_NAME
         } else {
-            sourceSetToSecretFileMap?.get(SecretsSourceSet(flavor))?.first?.name ?: DEFAULT_SECRETS_FILE_NAME
+            sourceSetToSecretFileMap?.get(sourceSet)?.first?.name ?: DEFAULT_SECRETS_FILE_NAME
         }
         return secretsFilePrefix.capitalize() + KOTLIN_FILE_NAME_SUFFIX
     }
 
     /**
-     * Retrieves the CMake argument name based on the given flavor.
+     * Retrieves the CMake argument name based on the given source set.
      *
-     * If no mapping exists for the given flavor, a default argument name will be used.
+     * If no mapping exists for the given source set, a default argument name will be used.
      *
-     * @param flavor The source set or build flavor for which the secrets file name should be retrieved.
-     * @return The CMake argument name for the provided flavor.
+     * @param sourceSet The source set or build flavor for which the secrets file name should be retrieved.
+     * @return The CMake argument name for the provided source set.
      */
-    private fun getCmakeArgumentName(flavor: String): String {
-        return sourceSetToSecretFileMap?.get(SecretsSourceSet(flavor))?.second?.argumentName
+    private fun getCmakeArgumentName(sourceSet: SecretsSourceSet): String {
+        return sourceSetToSecretFileMap?.get(sourceSet)?.second?.argumentName
             ?: DEFAULT_CMAKE_ARGUMENT_NAME
     }
 
     /**
-     * Keeps the provided secrets for the specified build flavor
+     * Keeps the provided secrets for the specified build source set
      *
-     * @param flavor the build flavor for which the secrets should be hidden
+     * @param sourceSet the source set or build flavor for which the secrets should be hidden
      * @param secrets the list of secrets to be hidden
      */
-    private fun keepSecrets(flavor: String, secrets: List<Secret>) {
+    private fun keepSecrets(sourceSet: SecretsSourceSet, secrets: List<Secret>) {
         if (secrets.isEmpty()) {
-            logWarning("No secrets to hide for the flavor $flavor.")
+            logWarning("No secrets to hide for the source set $sourceSet.")
             return
         }
 
-        copyCppFiles(flavor)
-        copyKotlinFile(flavor)
+        copyCppFiles(sourceSet)
+        copyKotlinFile(sourceSet)
 
-        val fileName = getKotlinSecretsFileName(flavor)
+        val fileName = getKotlinSecretsFileName(sourceSet)
         val secretsKotlin = getKotlinDestination(
-            flavor = flavor,
+            sourceSet = sourceSet,
             fileName = fileName,
         )
 
@@ -438,7 +440,7 @@ internal abstract class KeepSecretsTask : DefaultTask() {
             kotlinPackage = packageName
         }
 
-        val secretsCpp = getCppDestination(flavor = flavor, fileName = SECRETS_CPP_FILE_NAME)
+        val secretsCpp = getCppDestination(sourceSet = sourceSet, fileName = SECRETS_CPP_FILE_NAME)
         secrets.forEach { secret ->
             val (key, value) = secret
             val obfuscatedValue = Utils.encodeSecret(value, secretsVaultExtension.obfuscationKey.get())
@@ -458,8 +460,8 @@ internal abstract class KeepSecretsTask : DefaultTask() {
             )
         }
         logSuccess(
-            "You can now get your secret key for flavor {} by calling : {}().getYourSecretKeyName()",
-            flavor,
+            "You can now get your secret key for the source set {} by calling : {}().getYourSecretKeyName()",
+            sourceSet.sourceSet,
             fileName.removeSuffix(KOTLIN_FILE_NAME_SUFFIX),
         )
     }

@@ -1,5 +1,7 @@
 package com.commencis.secretsvaultplugin.utils
 
+import com.commencis.secretsvaultplugin.MAIN_SOURCE_SET_NAME
+import com.commencis.secretsvaultplugin.SecretsSourceSet
 import java.util.Locale
 
 /**
@@ -13,7 +15,7 @@ internal const val CHECK_APP_SIGNATURE_PLACEHOLDER = "// CHECK_APP_SIGNATURE_PLA
  */
 internal class CodeGenerator {
     /**
-     * Generates C++ code for the given package name, key name, obfuscated value, and flavor.
+     * Generates C++ code for the given package name, key name, obfuscated value, and source set.
      *
      * @param packageName the package name of the Android app
      * @param keyName the name of the key to be generated
@@ -56,27 +58,28 @@ internal class CodeGenerator {
     }
 
     /**
-     * Generates CMakeLists code for the given flavor and whether it is the first flavor.
+     * Generates CMakeLists code for the given source set and whether it is the first source set.
      *
-     * @param flavor the flavor of the app
+     * @param sourceSet the source set of the app
      * @param mappingFileName the file name of the mapped secrets file for the source set
      * @param cmakeArgumentName the name of CMake argument to differentiate between source sets.
-     * @param isFirstFlavor whether this is the first flavor
+     * @param isFirstSourceSet whether this is the first source set
      * @return a string containing the generated CMakeLists code
      */
     fun getCMakeListsCode(
-        flavor: String,
+        sourceSet: SecretsSourceSet,
         mappingFileName: String,
         cmakeArgumentName: String,
-        isFirstFlavor: Boolean = false,
+        isFirstSourceSet: Boolean = false,
     ): String {
-        val elseText = if (!isFirstFlavor) "else" else EMPTY_STRING
-        val conditionText = if (flavor == "main") {
+        val mainSourceSet = SecretsSourceSet(MAIN_SOURCE_SET_NAME)
+        val elseText = if (!isFirstSourceSet) "else" else EMPTY_STRING
+        val conditionText = if (sourceSet == mainSourceSet) {
             EMPTY_STRING
         } else {
-            "${elseText}if ($cmakeArgumentName STREQUAL \"$flavor\")"
+            "${elseText}if ($cmakeArgumentName STREQUAL \"$sourceSet\")"
         }
-        val flavorSecretsPathPrefix = if (flavor == "main") EMPTY_STRING else "../../$flavor/cpp/"
+        val sourceSetSecretsPathPrefix = if (sourceSet == mainSourceSet) EMPTY_STRING else "../../$sourceSet/cpp/"
         return if (conditionText.isEmpty()) {
             """
             |add_library(
@@ -92,7 +95,7 @@ internal class CodeGenerator {
             |    add_library(
             |            ${mappingFileName.lowercase(Locale.ENGLISH)}
             |            SHARED
-            |            ${flavorSecretsPathPrefix}secrets.cpp
+            |            ${sourceSetSecretsPathPrefix}secrets.cpp
             |    )
         """.trimMargin()
         }
