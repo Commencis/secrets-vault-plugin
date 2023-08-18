@@ -71,7 +71,7 @@ internal object Utils {
      */
     fun getKotlinFilePackage(file: File): String? {
         val lines = file.readLines(Charset.defaultCharset())
-        val packageLine = lines.firstOrNull { it.startsWith("package ") } ?: return null
+        val packageLine = lines.find { it.startsWith("package ") } ?: return null
         return packageLine.replace("package ", "").replace("`", "")
     }
 

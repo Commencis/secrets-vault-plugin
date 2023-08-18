@@ -26,10 +26,7 @@ internal value class SourceSetToSecretFileMappingArray(
     fun toMap(): Map<SecretsSourceSet, Pair<SecretsFileName, CMakeArgument>> {
         return sourceSetToSecretFileMappingArray.flatMap { mapping ->
             mapping.sourceSets.map { sourceSet ->
-                sourceSet to Pair(
-                    first = mapping.secretsFileName,
-                    second = mapping.cmakeArgument,
-                )
+                sourceSet to (mapping.secretsFileName to mapping.cmakeArgument)
             }
         }.toMap()
     }
