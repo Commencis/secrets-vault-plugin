@@ -18,16 +18,20 @@ internal class CodeGenerator {
      * @param packageName the package name of the Android app
      * @param keyName the name of the key to be generated
      * @param obfuscatedValue the obfuscated value
-     * @param flavor the flavor of the app
+     * @param fileName the name of the generated Kotlin file
      * @return a string containing the generated C++ code
      */
-    fun getCppCode(packageName: String, keyName: String, obfuscatedValue: String, flavor: String): String {
-        val filePrefix = if (flavor == "main") "Main" else ""
+    fun getCppCode(
+        packageName: String,
+        keyName: String,
+        obfuscatedValue: String,
+        fileName: String,
+    ): String {
         return """
             |
             |extern "C"
             |JNIEXPORT jstring JNICALL
-            |Java_${Utils.getCppName(packageName)}_${filePrefix}Secrets_get${keyName.capitalize()}(
+            |Java_${Utils.getCppName(packageName)}_${fileName}_get${keyName.capitalize()}(
             |        JNIEnv* pEnv,
             |        jobject pThis) {
             |     char obfuscatedSecret[] = $obfuscatedValue;
