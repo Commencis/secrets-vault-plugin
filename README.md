@@ -142,7 +142,7 @@ For global secrets that are accessible from all source sets and flavours, you ca
 
 > Note: Make sure that you update the `secrets.json` file with the relevant secrets for each source set in your Android project.
 
-# 5) Multi-Dimensional Flavors (Adcanced - Optional)
+# 5) Multi-Dimensional Flavors (Advanced - Optional)
 In complex projects with multiple build variants or distribution channels, managing secrets across these dimensions can be a challenge. The Secrets Vault Plugin simplifies this by introducing support for Multi-Dimensional Flavors.
 
 This feature allows developers to map specific secrets to distinct source sets, ensuring a streamlined approach to managing secrets based on various build configurations.
