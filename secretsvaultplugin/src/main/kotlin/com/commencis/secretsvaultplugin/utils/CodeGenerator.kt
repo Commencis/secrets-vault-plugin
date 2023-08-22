@@ -18,7 +18,7 @@ internal class CodeGenerator {
      * Generates C++ code for the given package name, key name, obfuscated value, and source set.
      *
      * @param packageName the package name of the Android app
-     * @param keyName the name of the key to be generated
+     * @param keyName the obfuscated name of the key to be generated
      * @param obfuscatedValue the obfuscated value
      * @param fileName the name of the generated Kotlin file
      * @return a string containing the generated C++ code
@@ -33,7 +33,7 @@ internal class CodeGenerator {
             |
             |extern "C"
             |JNIEXPORT jstring JNICALL
-            |Java_${Utils.getCppName(packageName)}_${fileName}_get${keyName.capitalize()}(
+            |Java_${Utils.getCppName(packageName)}_${fileName}_$keyName(
             |        JNIEnv* pEnv,
             |        jobject pThis) {
             |     char obfuscatedSecret[] = $obfuscatedValue;
@@ -47,11 +47,13 @@ internal class CodeGenerator {
      * Generates Kotlin code for the given key name.
      *
      * @param keyName the name of the key to be generated
+     * @param jvmName the obfuscated name to use for the JVM method for obfuscation purposes
      * @return a string containing the generated Kotlin code
      */
-    fun getKotlinCode(keyName: String): String {
+    fun getKotlinCode(keyName: String, jvmName: String): String {
         return """
             |
+            |    @JvmName("$jvmName")
             |    external fun get${keyName.capitalize()}(): String
             |
         """.trimMargin()
