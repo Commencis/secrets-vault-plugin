@@ -39,6 +39,7 @@ private const val DEFAULT_SECRETS_FILE_NAME = "Secrets"
 private const val TEMP_KOTLIN_INJECTABLE_FILE_NAME = "SecretsInjectable.kt"
 private const val TEMP_KOTLIN_NOT_INJECTABLE_FILE_NAME = "Secrets.kt"
 private const val DEFAULT_CMAKE_ARGUMENT_NAME = "sourceSet"
+private const val JVM_NAME_PREFIX = "a"
 
 // Ansi Colors
 private const val ANSI_COLOR_RESET = "\u001B[0m"
@@ -454,6 +455,9 @@ internal abstract class KeepSecretsTask : DefaultTask() {
             sourceSet = sourceSet,
             fileName = fileName,
         )
+        val secretKeyToIndexMap = secrets.mapIndexed { index, secret ->
+            secret.key to index
+        }.toMap()
 
         // Append Kotlin code
         val kotlinText = secretsKotlin.readText(Charset.defaultCharset()).replace(
@@ -461,7 +465,12 @@ internal abstract class KeepSecretsTask : DefaultTask() {
             fileName.removeSuffix(KOTLIN_FILE_NAME_SUFFIX).lowercase(Locale.ENGLISH)
         ).replace(
             EXTERNAL_METHODS_PLACEHOLDER,
-            secrets.joinToString(EMPTY_STRING) { codeGenerator.getKotlinCode(it.key) }
+            secrets.joinToString(EMPTY_STRING) {
+                codeGenerator.getKotlinCode(
+                    keyName = it.key,
+                    jvmName = "$JVM_NAME_PREFIX${secretKeyToIndexMap[it.key]}",
+                )
+            }
         )
         secretsKotlin.writeText(kotlinText, Charset.defaultCharset())
 
@@ -481,11 +490,10 @@ internal abstract class KeepSecretsTask : DefaultTask() {
                 logWarning("Key already added in C++ !")
                 return@forEach
             }
-            val cppKeyName = Utils.getCppName(key)
             secretsCpp.appendText(
                 text = codeGenerator.getCppCode(
                     packageName = kotlinPackage,
-                    keyName = cppKeyName,
+                    keyName = "$JVM_NAME_PREFIX${secretKeyToIndexMap[key]}",
                     obfuscatedValue = obfuscatedValue,
                     fileName = fileName.removeSuffix(KOTLIN_FILE_NAME_SUFFIX),
                 )
