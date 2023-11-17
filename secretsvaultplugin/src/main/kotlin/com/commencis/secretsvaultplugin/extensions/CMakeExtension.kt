@@ -9,7 +9,7 @@ import org.gradle.api.provider.Property
  * If not specified, the name of the module to which the plugin is applied will be used.
  * @property version The version of CMake. If not specified, [DEFAULT_CMAKE_VERSION] will be used.
  */
-internal interface CMakeExtension {
+interface CMakeExtension {
     val projectName: Property<String>
     val version: Property<String>
 }

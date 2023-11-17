@@ -51,4 +51,4 @@ configure<DetektExtension> {
 }
 
 group = "com.commencis.secretsvaultplugin"
-version = "0.1.0"
+version = "0.1.1"

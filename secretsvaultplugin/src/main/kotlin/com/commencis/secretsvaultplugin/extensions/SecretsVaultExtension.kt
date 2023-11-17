@@ -23,7 +23,7 @@ import java.io.File
  * @property cmake The CMake related configurations for the SecretVault. This includes properties like
  * the project name and version of CMake being used. Refer to [CMakeExtension] for detailed properties.
  */
-internal interface SecretsVaultExtension {
+interface SecretsVaultExtension {
     val obfuscationKey: Property<String>
     val secretsFile: Property<File>
     val sourceSetSecretsMappingFile: Property<File>
