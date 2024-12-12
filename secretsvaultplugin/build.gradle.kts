@@ -1,11 +1,11 @@
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import io.gitlab.arturbosch.detekt.extensions.DetektExtension
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
-    id("com.gradle.plugin-publish")
-    id("io.gitlab.arturbosch.detekt")
-    id("org.jetbrains.kotlin.plugin.serialization")
+    alias(libs.plugins.gradle.publish)
+    alias(libs.plugins.detekt)
+    alias(libs.plugins.kotlin.serialization)
     `kotlin-dsl`
     `maven-publish`
 }
@@ -46,8 +46,8 @@ configure<DetektExtension> {
     source = project.files("src/main/kotlin")
     buildUponDefaultConfig = true
     allRules = false
-    config = files("$rootDir/.detekt/config.yml")
-    baseline = file("$rootDir/.detekt/baseline.xml")
+    config = files("../.detekt/config.yml")
+    baseline = file("./.detekt/baseline.xml")
 }
 
 group = "com.commencis.secretsvaultplugin"
