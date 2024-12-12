@@ -98,3 +98,7 @@ secretsVault {
         version.set("3.17")
     }
 }
+
+dependencies {
+    implementation(libs.androidx.activityKtx)
+}
