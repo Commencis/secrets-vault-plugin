@@ -17,4 +17,6 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "Secrets Vault Plugin"
+
+include(":sampleapp")
 include(":secretsvaultplugin")
