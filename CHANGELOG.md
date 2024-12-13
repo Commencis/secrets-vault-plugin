@@ -1,3 +1,8 @@
+# 0.1.2
+
+### Fixed
+- Replace wrong "elseif" with "if" in generated CMakeLists file
+
 # 0.1.1
 
 ### Fixed

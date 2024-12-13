@@ -347,9 +347,10 @@ internal abstract class KeepSecretsTask : DefaultTask() {
             }
             sourceSets.groupBy { getCmakeArgumentName(it) }.forEach { map ->
                 val (cMakeArgument, sourceSetList) = map
-                sourceSetList.forEachIndexed { index, sourceSet ->
+                var isFirstSourceSet = true
+                for (sourceSet in sourceSetList) {
                     if (sourceSet == mainSourceSet) {
-                        return@forEachIndexed
+                        continue
                     }
                     val fileName = getKotlinSecretsFileName(sourceSet).removeSuffix(KOTLIN_FILE_NAME_SUFFIX)
                     textBuilder.append(
@@ -357,9 +358,10 @@ internal abstract class KeepSecretsTask : DefaultTask() {
                             sourceSet = sourceSet,
                             mappingFileName = fileName,
                             cmakeArgumentName = cMakeArgument,
-                            index == 0,
+                            isFirstSourceSet,
                         )
                     )
+                    isFirstSourceSet = false
                 }
                 if (sourceSetList.count { sourceSet -> sourceSet != mainSourceSet } > 1) {
                     textBuilder.append("\nendif()\n")
