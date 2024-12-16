@@ -1,5 +1,7 @@
 pluginManagement {
-    includeBuild("secretsvaultplugin")
+    includeBuild("secretsvaultplugin") {
+        name = "secretsvaultplugin_included"
+    }
     repositories {
         google()
         mavenCentral()
@@ -17,3 +19,4 @@ dependencyResolutionManagement {
 rootProject.name = "Secrets Vault Plugin"
 
 include(":sampleapp")
+include(":secretsvaultplugin")
