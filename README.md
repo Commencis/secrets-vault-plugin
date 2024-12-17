@@ -96,9 +96,50 @@ android {
 }
 ```
 
+## Access inside Kotlin
+
 Access your secret key by calling :
 ```kotlin
 val key = MainSecrets().getYourSecretKeyName()
+```
+
+## Access inside Java
+
+The names of the methods in the generated files (`MainSecrets.kt` & `Secrets.kt`) are replaced with dummy strings such as `a0` on the `JVM` side for extra security. This makes accessing these methods inside `Java` classes a bit tricky since those names are not "readable" and are dependent on the order in `secrets.json` file.
+
+As as solution, a helper/wrapper `Kotlin` class can be created instead of accessing these methods directly inside a `Java` class:
+
+`MySecretsHelper.kt`:
+```kotlin
+internal class MySecretsHelper {
+  val secrets = MainSecrets() // Suppose contains "external fun getYourSecretKeyName(): String" with "@JvmName("a0")" annotation.
+  val mySecret: String get() = secrets.getYourSecretKeyName()
+}
+```
+
+Inside your `Java` class, instead of doing:
+
+```java
+class MySecretsConsumer {
+  final MainSecrets secrets = new MainSecrets();
+
+  void someMethod() {
+    final String key = secrets.a0();
+    ...
+  }
+}
+```
+
+You can do:
+```java
+class MySecretsConsumer {
+  final MySecretsHelper secretsHelper = new MySecretsHelper();
+
+  void someMethod() {
+    final String key = secretsHelper.getMySecret();
+    ...
+  }
+}
 ```
 
 # 4) Flavor-specific Secrets (Optional)
