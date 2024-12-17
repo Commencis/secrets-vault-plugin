@@ -11,7 +11,7 @@ The Secrets Vault Plugin employs multiple security-enhancing strategies, includi
 
 > Please remember that no client-side security measures are invincible. As a rule of thumb, **storing secrets in a mobile app is not considered best practice**. However, when there's no other option, this method is our best recommendation for concealing them.
 
-# 1) Getting started
+# 1) Getting Started
 
 To use the Secrets Vault Plugin in your Android project, follow these steps:
 
@@ -37,7 +37,7 @@ plugins {
 }
 ```
 
-# 2) Keep secrets in your project
+# 2) Keep Secrets in Your Project
 
 To keep secrets in your project, you can add them to a JSON file located in the root folder of the module where you've applied the plugin.
 Follow the format below:
@@ -81,7 +81,7 @@ secretsVault {
   - The `projectName` parameter is optional and uses the module's name where the plugin is applied by default. You can specify a different project name if needed.
   - The `version` parameter is optional. If not provided, a default CMake version will be used.
 
-# 3) Get your secret key in your app
+# 3) Get Your Secret Key in Your App
 To enable the compilation of C++ files, add these lines in the Module level `build.gradle[.kts]` :
 ```gradle
 android {
@@ -101,7 +101,7 @@ Access your secret key by calling :
 val key = MainSecrets().getYourSecretKeyName()
 ```
 
-# 4) Flavor-specific secrets (Optional)
+# 4) Flavor-specific Secrets (Optional)
 If you are working on multi-flavor projects and have flavor-specific secrets, you need to pass arguments to CMake in your `build.gradle[.kts]` file. Follow the steps below:
 
 ```gradle
@@ -207,7 +207,7 @@ android {
 ```
 Remember to replace version in -Dversion=flavorName with the appropriate cmakeArgument from your JSON. The flavorName should correspond to the specific product flavor you're building for.
 
-# 6) Enhance your secrets security (Optional)
+# 6) Enhance Your Secrets' Security (Optional)
 To enhance the security of your secrets, you can create a custom encoding/decoding algorithm. The secrets will be stored in C++ and further secured by applying your custom encoding algorithm. Additionally, the decoding algorithm will be compiled, making it more challenging for an attacker to reverse-engineer and obtain your keys.
 
 Encode all values in your `secrets.json` file.
