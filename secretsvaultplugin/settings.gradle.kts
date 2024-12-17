@@ -1,7 +1,4 @@
 pluginManagement {
-    includeBuild("secretsvaultplugin") {
-        name = "secretsvaultplugin_included"
-    }
     repositories {
         google()
         mavenCentral()
@@ -14,9 +11,9 @@ dependencyResolutionManagement {
         google()
         mavenCentral()
     }
+    versionCatalogs {
+        create("libs") {
+            from(files("../gradle/libs.versions.toml"))
+        }
+    }
 }
-
-rootProject.name = "Secrets Vault Plugin"
-
-include(":sampleapp")
-include(":secretsvaultplugin")
