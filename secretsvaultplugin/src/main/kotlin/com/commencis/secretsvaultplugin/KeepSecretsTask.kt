@@ -488,14 +488,15 @@ internal abstract class KeepSecretsTask : DefaultTask() {
             val (key, value) = secret
             val obfuscatedValue = Utils.encodeSecret(value, secretsVaultExtension.obfuscationKey.get())
             val cppText = secretsCpp.readText(Charset.defaultCharset())
-            if (cppText.contains(obfuscatedValue)) {
+            val keyName = "$JVM_NAME_PREFIX${secretKeyToIndexMap[key]}"
+            if (cppText.contains(keyName)) {
                 logWarning("Key already added in C++ !")
                 return@forEach
             }
             secretsCpp.appendText(
                 text = codeGenerator.getCppCode(
                     packageName = kotlinPackage,
-                    keyName = "$JVM_NAME_PREFIX${secretKeyToIndexMap[key]}",
+                    keyName = keyName,
                     obfuscatedValue = obfuscatedValue,
                     fileName = fileName.removeSuffix(KOTLIN_FILE_NAME_SUFFIX),
                 )
