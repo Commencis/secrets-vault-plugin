@@ -1,3 +1,8 @@
+# 0.1.3
+
+### Fixed
+- Fix checking obfuscated value instead of key name on generating cpp file for secrets
+
 # 0.1.2
 
 ### Fixed
