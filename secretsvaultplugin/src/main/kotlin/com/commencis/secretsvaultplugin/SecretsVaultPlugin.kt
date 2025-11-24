@@ -1,7 +1,9 @@
 package com.commencis.secretsvaultplugin
 
+import com.android.build.api.dsl.CommonExtension
 import com.commencis.secretsvaultplugin.extensions.CMakeExtension
 import com.commencis.secretsvaultplugin.extensions.SecretsVaultExtension
+import com.commencis.secretsvaultplugin.utils.EMPTY_STRING
 import com.commencis.secretsvaultplugin.utils.Utils
 import kotlinx.serialization.json.Json
 import org.gradle.api.Plugin
@@ -65,6 +67,30 @@ internal class SecretsVaultPlugin : Plugin<Project> {
             description = "Re-generate and obfuscate keys from the json file and add it to your Android project"
             pluginSourceFolder.set(unzipTaskProvider.map { task -> task.destinationDir })
             json.set(Json { encodeDefaults = true })
+            
+            // Set extension values during configuration time
+            val secretsVaultExtension = project.extensions.getByType(SecretsVaultExtension::class.java)
+            val cMakeExtension = secretsVaultExtension.cmake.get()
+            
+            // Set project directory during configuration
+            projectDirectory.set(project.layout.projectDirectory)
+            
+            secretsFile.set(secretsVaultExtension.secretsFile)
+            sourceSetSecretsMappingFile.set(secretsVaultExtension.sourceSetSecretsMappingFile)
+            obfuscationKey.set(secretsVaultExtension.obfuscationKey)
+            appSignatures.set(secretsVaultExtension.appSignatures)
+            makeInjectable.set(secretsVaultExtension.makeInjectable)
+            cmakeProjectName.set(cMakeExtension.projectName)
+            cmakeVersion.set(cMakeExtension.version)
+            
+            // Set package name (with fallback to namespace from CommonExtension)
+            packageName.set(
+                secretsVaultExtension.packageName.map { pkg ->
+                    pkg.ifEmpty {
+                        project.extensions.findByType(CommonExtension::class.java)?.namespace.orEmpty()
+                    }
+                }
+            )
         }
     }
 
