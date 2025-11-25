@@ -61,7 +61,8 @@ internal abstract class KeepSecretsTask : DefaultTask() {
     /**
      * Map containing the source sets and their respective secrets file names
      */
-    private var sourceSetToSecretFileMap: Map<SecretsSourceSet, Pair<SecretsFileName, CMakeArgument>>? = null
+    private var sourceSetToSecretFileMap: Map<SecretsSourceSet, Pair<SecretsFileName, CMakeArgument>>? =
+        null
 
     /**
      * Plugin source folder that has the cpp and kotlin files
@@ -193,7 +194,8 @@ internal abstract class KeepSecretsTask : DefaultTask() {
     private fun initSecretsFromFile(secretsFile: File) {
         val content = secretsFile.readText(Charsets.UTF_8)
         runCatching {
-            secretsMap = json.get().decodeFromString<Secrets>(content).secrets.groupBy { it.sourceSet }
+            secretsMap =
+                json.get().decodeFromString<Secrets>(content).secrets.groupBy { it.sourceSet }
         }.onFailure { throwable ->
             logger.error(
                 """
@@ -219,7 +221,8 @@ internal abstract class KeepSecretsTask : DefaultTask() {
     private fun initSourceSetToSecretFileMap(mappingFile: File) {
         val content = mappingFile.readText(Charsets.UTF_8)
         runCatching {
-            sourceSetToSecretFileMap = json.get().decodeFromString<SourceSetToSecretFileMappingArray>(content).toMap()
+            sourceSetToSecretFileMap =
+                json.get().decodeFromString<SourceSetToSecretFileMappingArray>(content).toMap()
             if (sourceSetToSecretFileMap?.any { it.value.first.name == MAIN_SOURCE_SET_SECRETS_FILE_NAME } == true) {
                 logger.error(
                     """
@@ -262,7 +265,9 @@ internal abstract class KeepSecretsTask : DefaultTask() {
         fileName: String,
         pathSuffix: String = EMPTY_STRING,
     ): File {
-        return projectDirectory.get().file(SOURCE_SET_TEMPLATE.format(sourceSet.sourceSet, "cpp") + pathSuffix + fileName).asFile
+        return projectDirectory.get().file(
+            SOURCE_SET_TEMPLATE.format(sourceSet.sourceSet, "cpp") + pathSuffix + fileName
+        ).asFile
     }
 
     /**
@@ -302,19 +307,24 @@ internal abstract class KeepSecretsTask : DefaultTask() {
             }.let { encodedAppSignatures ->
                 codeGenerator.getAppSignatureCheck(encodedAppSignatures)
             }
-            projectDirectory.get().file("${pluginSourceFolder.get().path}/cpp/common/").asFile.listFiles()?.forEach { file ->
-                var text = file.readText(Charset.defaultCharset())
-                if (file.name == SECRETS_UTIL_CPP_FILE_NAME) {
-                    text = text.replace(OBFUSCATION_KEY_PLACEHOLDER, obfuscationKey.get())
-                        .replace(CHECK_APP_SIGNATURE_PLACEHOLDER, appSignaturesCodeBlock)
+            projectDirectory
+                .get()
+                .file("${pluginSourceFolder.get().path}/cpp/common/")
+                .asFile
+                .listFiles()
+                ?.forEach { file ->
+                    var text = file.readText(Charset.defaultCharset())
+                    if (file.name == SECRETS_UTIL_CPP_FILE_NAME) {
+                        text = text.replace(OBFUSCATION_KEY_PLACEHOLDER, obfuscationKey.get())
+                            .replace(CHECK_APP_SIGNATURE_PLACEHOLDER, appSignaturesCodeBlock)
+                    }
+                    val destination = getCppDestination(
+                        sourceSet = SecretsSourceSet(MAIN_SOURCE_SET_NAME),
+                        fileName = file.name,
+                        pathSuffix = "common/",
+                    )
+                    writeTextToFile(destination, text)
                 }
-                val destination = getCppDestination(
-                    sourceSet = SecretsSourceSet(MAIN_SOURCE_SET_NAME),
-                    fileName = file.name,
-                    pathSuffix = "common/",
-                )
-                writeTextToFile(destination, text)
-            }
         }.onFailure { throwable ->
             if (throwable is IOException) {
                 logger.error("Error occurred while copying CPP files: ${throwable.message}")
@@ -329,7 +339,10 @@ internal abstract class KeepSecretsTask : DefaultTask() {
      */
     private fun copySecretCppFile(sourceSet: SecretsSourceSet) {
         runCatching {
-            val secretsFile = projectDirectory.get().file("${pluginSourceFolder.get().path}/cpp/$SECRETS_CPP_FILE_NAME").asFile
+            val secretsFile = projectDirectory
+                .get()
+                .file("${pluginSourceFolder.get().path}/cpp/$SECRETS_CPP_FILE_NAME")
+                .asFile
             val text = secretsFile.readText(Charset.defaultCharset()).replace(
                 oldValue = COMMON_FOLDER_PATH_PREFIX_PLACEHOLDER,
                 newValue = if (sourceSet == SecretsSourceSet(MAIN_SOURCE_SET_NAME)) {
@@ -338,7 +351,8 @@ internal abstract class KeepSecretsTask : DefaultTask() {
                     COMMON_FOLDER_PATH_PREFIX
                 },
             )
-            val destination = getCppDestination(sourceSet = sourceSet, fileName = SECRETS_CPP_FILE_NAME)
+            val destination =
+                getCppDestination(sourceSet = sourceSet, fileName = SECRETS_CPP_FILE_NAME)
             writeTextToFile(destination, text)
         }.onFailure { throwable ->
             if (throwable is IOException) {
@@ -355,14 +369,18 @@ internal abstract class KeepSecretsTask : DefaultTask() {
     private fun copyCMakeListsFile(sourceSets: Set<SecretsSourceSet>) {
         runCatching {
             val mainSourceSet = SecretsSourceSet(MAIN_SOURCE_SET_NAME)
-            val file = projectDirectory.get().file("${pluginSourceFolder.get().path}/cpp/$C_MAKE_LISTS_FILE_NAME").asFile
+            val file = projectDirectory
+                .get()
+                .file("${pluginSourceFolder.get().path}/cpp/$C_MAKE_LISTS_FILE_NAME")
+                .asFile
             val textBuilder = StringBuilder(
                 file.readText(Charset.defaultCharset())
                     .replace(PROJECT_NAME_PLACEHOLDER, cmakeProjectName.get())
                     .replace(CMAKE_VERSION_PLACEHOLDER, cmakeVersion.get())
             )
             if (sourceSets.contains(mainSourceSet)) {
-                val fileName = getKotlinSecretsFileName(mainSourceSet).removeSuffix(KOTLIN_FILE_NAME_SUFFIX)
+                val fileName =
+                    getKotlinSecretsFileName(mainSourceSet).removeSuffix(KOTLIN_FILE_NAME_SUFFIX)
                 textBuilder.append(
                     codeGenerator.getCMakeListsCode(
                         sourceSet = mainSourceSet,
@@ -379,7 +397,8 @@ internal abstract class KeepSecretsTask : DefaultTask() {
                     if (sourceSet == mainSourceSet) {
                         continue
                     }
-                    val fileName = getKotlinSecretsFileName(sourceSet).removeSuffix(KOTLIN_FILE_NAME_SUFFIX)
+                    val fileName =
+                        getKotlinSecretsFileName(sourceSet).removeSuffix(KOTLIN_FILE_NAME_SUFFIX)
                     textBuilder.append(
                         codeGenerator.getCMakeListsCode(
                             sourceSet = sourceSet,
@@ -410,14 +429,18 @@ internal abstract class KeepSecretsTask : DefaultTask() {
             } else {
                 TEMP_KOTLIN_NOT_INJECTABLE_FILE_NAME
             }
-            val kotlinFiles = projectDirectory.get().file("${pluginSourceFolder.get().path}/kotlin/").asFile.listFiles()
+            val kotlinFiles = projectDirectory.get()
+                .file("${pluginSourceFolder.get().path}/kotlin/").asFile.listFiles()
             val kotlinFile = kotlinFiles?.find { file ->
                 file.name == kotlinFileName
             } ?: throw IOException("Kotlin file that will be copied not found")
             var text = kotlinFile.readText(Charset.defaultCharset())
             val fileName = getKotlinSecretsFileName(sourceSet)
             text = text.replace(PACKAGE_PLACEHOLDER, packageName.get())
-                .replace(SECRETS_CLASS_NAME_PLACEHOLDER, fileName.removeSuffix(KOTLIN_FILE_NAME_SUFFIX))
+                .replace(
+                    SECRETS_CLASS_NAME_PLACEHOLDER,
+                    fileName.removeSuffix(KOTLIN_FILE_NAME_SUFFIX)
+                )
             val destination = getKotlinDestination(
                 sourceSet = sourceSet,
                 fileName = fileName,
