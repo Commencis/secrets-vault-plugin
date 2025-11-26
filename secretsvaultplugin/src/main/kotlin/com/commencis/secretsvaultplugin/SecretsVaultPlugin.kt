@@ -67,8 +67,8 @@ internal class SecretsVaultPlugin : Plugin<Project> {
             group = TASK_GROUP
             description = "Re-generate and obfuscate keys from the json file and add it to your Android project"
             pluginSourceFolder.set(
-                unzipTaskProvider.map {
-                    project.layout.projectDirectory.dir(it.destinationDir.path)
+                unzipTaskProvider.map { copyTask ->
+                    project.layout.projectDirectory.dir(copyTask.destinationDir.path)
                 }
             )
             secretsFile.set(secretsVaultExtension.secretsFile)
@@ -85,8 +85,8 @@ internal class SecretsVaultPlugin : Plugin<Project> {
                 }
             )
 
-            cmakeProjectName.set(secretsVaultExtension.cmake.flatMap { it.projectName })
-            cmakeVersion.set(secretsVaultExtension.cmake.flatMap { it.version })
+            cmakeProjectName.set(secretsVaultExtension.cmake.flatMap { cMakeExtension -> cMakeExtension.projectName })
+            cmakeVersion.set(secretsVaultExtension.cmake.flatMap { cMakeExtension -> cMakeExtension.version })
         }
     }
 

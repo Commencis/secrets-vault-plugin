@@ -2,7 +2,7 @@
 kotlin = "2.2.21"
 androidGradlePlugin = "8.13.1"
 gradlePublish = "1.2.0"
-detekt = "1.22.0"
+detekt = "1.23.8"
 kotlinxSerializationJson = "1.5.1"
 jvmTarget = "17"
 
