@@ -3,7 +3,6 @@ package com.commencis.secretsvaultplugin
 import com.android.build.api.dsl.CommonExtension
 import com.commencis.secretsvaultplugin.extensions.CMakeExtension
 import com.commencis.secretsvaultplugin.extensions.SecretsVaultExtension
-import com.commencis.secretsvaultplugin.utils.EMPTY_STRING
 import com.commencis.secretsvaultplugin.utils.Utils
 import org.gradle.api.Plugin
 import org.gradle.api.Project
@@ -67,9 +66,9 @@ internal class SecretsVaultPlugin : Plugin<Project> {
             group = TASK_GROUP
             description = "Re-generate and obfuscate keys from the json file and add it to your Android project"
             pluginSourceFolder.set(
-                unzipTaskProvider.map { copyTask ->
-                    project.layout.projectDirectory.dir(copyTask.destinationDir.path)
-                }
+                project.layout.projectDirectory.dir(
+                    unzipTaskProvider.map { task -> task.destinationDir.absolutePath }
+                )
             )
             secretsFile.set(secretsVaultExtension.secretsFile)
             sourceSetSecretsMappingFile.set(secretsVaultExtension.sourceSetSecretsMappingFile)
@@ -77,12 +76,14 @@ internal class SecretsVaultPlugin : Plugin<Project> {
             appSignatures.set(secretsVaultExtension.appSignatures)
             makeInjectable.set(secretsVaultExtension.makeInjectable)
 
-            // Provide the package name in the extension unless it is not specified or empty,
+            // Provide the package name in the extension unless it is not specified,
             // in which case the namespace is used.
             packageName.set(
-                secretsVaultExtension.packageName.getOrElse(EMPTY_STRING).ifEmpty {
-                    project.extensions.getByType(CommonExtension::class.java).namespace.orEmpty()
-                }
+                secretsVaultExtension.packageName.orElse(
+                    project.provider {
+                        project.extensions.findByType(CommonExtension::class.java)?.namespace.orEmpty()
+                    }
+                )
             )
 
             cmakeProjectName.set(secretsVaultExtension.cmake.flatMap { cMakeExtension -> cMakeExtension.projectName })
