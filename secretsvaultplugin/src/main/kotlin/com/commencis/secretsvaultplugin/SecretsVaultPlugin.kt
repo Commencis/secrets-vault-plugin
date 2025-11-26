@@ -1,9 +1,10 @@
 package com.commencis.secretsvaultplugin
 
+import com.android.build.api.dsl.CommonExtension
 import com.commencis.secretsvaultplugin.extensions.CMakeExtension
 import com.commencis.secretsvaultplugin.extensions.SecretsVaultExtension
+import com.commencis.secretsvaultplugin.utils.EMPTY_STRING
 import com.commencis.secretsvaultplugin.utils.Utils
-import kotlinx.serialization.json.Json
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.tasks.Copy
@@ -57,14 +58,35 @@ internal class SecretsVaultPlugin : Plugin<Project> {
             into(project.layout.buildDirectory.dir("intermediates/secrets_vault_plugin"))
         }
 
+        val secretsVaultExtension = project.extensions.getByType(SecretsVaultExtension::class.java)
+
         /**
          * Create a gradle task to keep secrets from a json file.
          */
         project.tasks.register(TASK_KEEP_SECRETS_FROM_JSON_FILE, KeepSecretsTask::class.java).configure {
             group = TASK_GROUP
             description = "Re-generate and obfuscate keys from the json file and add it to your Android project"
-            pluginSourceFolder.set(unzipTaskProvider.map { task -> task.destinationDir })
-            json.set(Json { encodeDefaults = true })
+            pluginSourceFolder.set(
+                unzipTaskProvider.map {
+                    project.layout.projectDirectory.dir(it.destinationDir.path)
+                }
+            )
+            secretsFile.set(secretsVaultExtension.secretsFile)
+            sourceSetSecretsMappingFile.set(secretsVaultExtension.sourceSetSecretsMappingFile)
+            obfuscationKey.set(secretsVaultExtension.obfuscationKey)
+            appSignatures.set(secretsVaultExtension.appSignatures)
+            makeInjectable.set(secretsVaultExtension.makeInjectable)
+
+            // Provide the package name in the extension unless it is not specified or empty,
+            // in which case the namespace is used.
+            packageName.set(
+                secretsVaultExtension.packageName.getOrElse(EMPTY_STRING).ifEmpty {
+                    project.extensions.getByType(CommonExtension::class.java).namespace.orEmpty()
+                }
+            )
+
+            cmakeProjectName.set(secretsVaultExtension.cmake.flatMap { it.projectName })
+            cmakeVersion.set(secretsVaultExtension.cmake.flatMap { it.version })
         }
     }
 
@@ -91,7 +113,7 @@ internal class SecretsVaultPlugin : Plugin<Project> {
     private fun createSecretsVaultExtension(project: Project, cmakeExtension: CMakeExtension): SecretsVaultExtension {
         return project.extensions.create(EXTENSION_NAME_SECRETS_VAULT, SecretsVaultExtension::class.java).apply {
             obfuscationKey.convention(Utils.generateObfuscationKey())
-            secretsFile.convention(project.file(DEFAULT_SECRETS_FILE_NAME))
+            secretsFile.convention(project.layout.projectDirectory.file(DEFAULT_SECRETS_FILE_NAME))
             appSignatures.convention(emptyList())
             makeInjectable.convention(DEFAULT_MAKE_INJECTABLE_VALUE)
             cmake.convention(cmakeExtension)

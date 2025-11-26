@@ -1,9 +1,9 @@
 package com.commencis.secretsvaultplugin.extensions
 
 import com.commencis.secretsvaultplugin.utils.EMPTY_STRING
+import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
-import java.io.File
 
 /**
  * Provides extension properties for the SecretVault, allowing configurations to be set.
@@ -25,8 +25,8 @@ import java.io.File
  */
 interface SecretsVaultExtension {
     val obfuscationKey: Property<String>
-    val secretsFile: Property<File>
-    val sourceSetSecretsMappingFile: Property<File>
+    val secretsFile: RegularFileProperty
+    val sourceSetSecretsMappingFile: RegularFileProperty
     val appSignatures: ListProperty<String>
     val packageName: Property<String>
     val makeInjectable: Property<Boolean>
