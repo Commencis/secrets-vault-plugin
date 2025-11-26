@@ -1,5 +1,3 @@
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -8,12 +6,12 @@ plugins {
 
 android {
     namespace = "com.commencis.secretsvaultplugin.sampleapp"
-    compileSdk = 33
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.commencis.secretsvaultplugin.sampleapp"
-        minSdk = 21
-        targetSdk = 33
+        minSdk = 23
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0"
 
@@ -50,11 +48,6 @@ android {
         }
     }
 
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
-    }
-
     externalNativeBuild {
         cmake {
             path("src/main/cpp/CMakeLists.txt")
@@ -80,9 +73,11 @@ android {
             }
         }
     }
+}
 
-    kotlinOptions {
-        jvmTarget = JvmTarget.JVM_11.target
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(libs.versions.jvmTarget.get()))
     }
 }
 
