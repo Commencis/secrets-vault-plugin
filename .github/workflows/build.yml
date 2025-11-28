@@ -31,10 +31,15 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
+      - name: Clean build directory
+        run: |
+          ./gradlew clean --no-configuration-cache || true
+          rm -rf sampleapp/build/intermediates/lint-cache || true
+
       - name: Run build with caching enabled
         uses: gradle/gradle-build-action@v2.4.2
         with:
-          arguments: clean build -s
+          arguments: build -s
 
       - name: Run Detekt
         run: ./gradlew detektMain
