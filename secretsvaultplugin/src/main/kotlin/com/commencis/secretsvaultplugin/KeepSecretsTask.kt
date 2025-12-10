@@ -1,7 +1,5 @@
 package com.commencis.secretsvaultplugin
 
-import com.android.build.api.dsl.CommonExtension
-import com.commencis.secretsvaultplugin.extensions.SecretsVaultExtension
 import com.commencis.secretsvaultplugin.utils.CHECK_APP_SIGNATURE_PLACEHOLDER
 import com.commencis.secretsvaultplugin.utils.CodeGenerator
 import com.commencis.secretsvaultplugin.utils.EMPTY_STRING
@@ -9,14 +7,22 @@ import com.commencis.secretsvaultplugin.utils.Utils
 import com.commencis.secretsvaultplugin.utils.capitalize
 import kotlinx.serialization.json.Json
 import org.gradle.api.DefaultTask
+import org.gradle.api.file.Directory
+import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.file.ProjectLayout
+import org.gradle.api.file.RegularFileProperty
+import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
+import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputDirectory
-import org.gradle.api.tasks.Internal
+import org.gradle.api.tasks.InputFile
+import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.TaskAction
 import java.io.File
 import java.io.IOException
 import java.nio.charset.Charset
 import java.util.Locale
+import javax.inject.Inject
 
 internal const val MAIN_SOURCE_SET_NAME = "main"
 
@@ -52,7 +58,72 @@ private const val ANSI_COLOR_YELLOW = "\u001B[33m"
  * replaces them with obfuscated keys from the provided json file.
  */
 @Suppress("TooManyFunctions", "UnnecessaryAbstractClass")
-internal abstract class KeepSecretsTask : DefaultTask() {
+internal abstract class KeepSecretsTask @Inject constructor(private val projectLayout: ProjectLayout) : DefaultTask() {
+
+    /**
+     * Plugin source directory that has the cpp and kotlin files
+     */
+    @get:InputDirectory
+    abstract val pluginSourceFolder: DirectoryProperty
+
+    /**
+     * The secrets file to read from
+     */
+    @get:InputFile
+    abstract val secretsFile: RegularFileProperty
+
+    /**
+     * Optional mapping file for source sets to secret file names
+     */
+    @get:InputFile
+    @get:Optional
+    abstract val sourceSetSecretsMappingFile: RegularFileProperty
+
+    /**
+     * The obfuscation key
+     */
+    @get:Input
+    abstract val obfuscationKey: Property<String>
+
+    /**
+     * List of application signatures
+     */
+    @get:Input
+    abstract val appSignatures: ListProperty<String>
+
+    /**
+     * The package name
+     */
+    @get:Input
+    abstract val packageName: Property<String>
+
+    /**
+     * Whether to make the generated class injectable
+     */
+    @get:Input
+    abstract val makeInjectable: Property<Boolean>
+
+    /**
+     * CMake project name
+     */
+    @get:Input
+    abstract val cmakeProjectName: Property<String>
+
+    /**
+     * CMake version
+     */
+    @get:Input
+    abstract val cmakeVersion: Property<String>
+
+    private val projectDirectory: Directory
+        get() = projectLayout.projectDirectory
+
+    /**
+     * Lazily initialized instance of [CodeGenerator].
+     */
+    private val codeGenerator by lazy { CodeGenerator() }
+
+    private val json = Json { encodeDefaults = true }
 
     /**
      * Map containing the secrets
@@ -63,50 +134,6 @@ internal abstract class KeepSecretsTask : DefaultTask() {
      * Map containing the source sets and their respective secrets file names
      */
     private var sourceSetToSecretFileMap: Map<SecretsSourceSet, Pair<SecretsFileName, CMakeArgument>>? = null
-
-    /**
-     * Plugin source folder that has the cpp and kotlin files
-     */
-    @get:InputDirectory
-    abstract val pluginSourceFolder: Property<File>
-
-    /**
-     * Represents the JSON property of the class it's abstracted in.
-     */
-    @get:Internal
-    abstract val json: Property<Json>
-
-    /**
-     * Provides lazy access to the [SecretsVaultExtension] of the project.
-     */
-    private val secretsVaultExtension by lazy {
-        project.extensions.getByType(SecretsVaultExtension::class.java)
-    }
-
-    /**
-     * Provides lazy access to the [CMakeExtension] of the project.
-     */
-    private val cMakeExtension by lazy {
-        secretsVaultExtension.cmake.get()
-    }
-
-    /**
-     * Get the package name of the module on which this plugin is used
-     *
-     * The function will first attempt to get the package name from the [SecretsVaultExtension].
-     * If it's not provided (i.e., it's an empty string), the function will attempt to get the namespace
-     * from the [CommonExtension] of the project.
-     */
-    private val packageName: String by lazy {
-        secretsVaultExtension.packageName.getOrElse(EMPTY_STRING).ifEmpty {
-            project.extensions.getByType(CommonExtension::class.java).namespace.orEmpty()
-        }
-    }
-
-    /**
-     * Lazily initialized instance of [CodeGenerator].
-     */
-    private val codeGenerator by lazy { CodeGenerator() }
 
     /**
      * The main task action which is responsible for keeping secrets
@@ -135,7 +162,7 @@ internal abstract class KeepSecretsTask : DefaultTask() {
      */
     @Throws(IllegalArgumentException::class)
     private fun getSecretsFile(): File {
-        val secretsFile = secretsVaultExtension.secretsFile.get()
+        val secretsFile = secretsFile.get().asFile
         require(secretsFile.exists() && secretsFile.isFile) {
             "${secretsFile.name} does not exist or is not a valid file!"
         }
@@ -150,7 +177,7 @@ internal abstract class KeepSecretsTask : DefaultTask() {
      */
     @Throws(IllegalArgumentException::class)
     private fun getSourceSetToSecretMappingFile(): File? {
-        val mappingFile = secretsVaultExtension.sourceSetSecretsMappingFile.orNull
+        val mappingFile = sourceSetSecretsMappingFile.orNull?.asFile
         if (mappingFile != null) {
             require(mappingFile.exists() && mappingFile.isFile) {
                 "${mappingFile.name} does not exist or is not a valid file!"
@@ -167,7 +194,7 @@ internal abstract class KeepSecretsTask : DefaultTask() {
     private fun initSecretsFromFile(secretsFile: File) {
         val content = secretsFile.readText(Charsets.UTF_8)
         runCatching {
-            secretsMap = json.get().decodeFromString<Secrets>(content).secrets.groupBy { it.sourceSet }
+            secretsMap = json.decodeFromString<Secrets>(content).secrets.groupBy { it.sourceSet }
         }.onFailure { throwable ->
             logger.error(
                 """
@@ -193,7 +220,7 @@ internal abstract class KeepSecretsTask : DefaultTask() {
     private fun initSourceSetToSecretFileMap(mappingFile: File) {
         val content = mappingFile.readText(Charsets.UTF_8)
         runCatching {
-            sourceSetToSecretFileMap = json.get().decodeFromString<SourceSetToSecretFileMappingArray>(content).toMap()
+            sourceSetToSecretFileMap = json.decodeFromString<SourceSetToSecretFileMappingArray>(content).toMap()
             if (sourceSetToSecretFileMap?.any { it.value.first.name == MAIN_SOURCE_SET_SECRETS_FILE_NAME } == true) {
                 logger.error(
                     """
@@ -236,7 +263,9 @@ internal abstract class KeepSecretsTask : DefaultTask() {
         fileName: String,
         pathSuffix: String = EMPTY_STRING,
     ): File {
-        return project.file(SOURCE_SET_TEMPLATE.format(sourceSet.sourceSet, "cpp") + pathSuffix + fileName)
+        return projectDirectory
+            .file(SOURCE_SET_TEMPLATE.format(sourceSet.sourceSet, "cpp") + pathSuffix + fileName)
+            .asFile
     }
 
     /**
@@ -249,11 +278,11 @@ internal abstract class KeepSecretsTask : DefaultTask() {
     private fun getKotlinDestination(sourceSet: SecretsSourceSet, fileName: String): File {
         val kotlinPath = SOURCE_SET_TEMPLATE.format(sourceSet.sourceSet, "kotlin")
         val javaPath = SOURCE_SET_TEMPLATE.format(sourceSet.sourceSet, "java")
-        val basePath = kotlinPath.takeIf { project.file(kotlinPath).exists() } ?: javaPath
-        val packagePath = packageName.replace(".", File.separator)
+        val basePath = kotlinPath.takeIf { projectDirectory.file(kotlinPath).asFile.exists() } ?: javaPath
+        val packagePath = packageName.get().replace(".", File.separator)
         val fullPath = basePath + packagePath
 
-        val directory = project.file(fullPath)
+        val directory = projectDirectory.file(fullPath).asFile
         if (directory.exists().not()) {
             logger.lifecycle("Directory $fullPath does not exist in the project, creating it.")
             directory.mkdirs()
@@ -267,18 +296,18 @@ internal abstract class KeepSecretsTask : DefaultTask() {
      */
     private fun copyCommonCppFiles() {
         runCatching {
-            val appSignaturesCodeBlock = secretsVaultExtension.appSignatures.get().map { appSignature ->
+            val appSignaturesCodeBlock = appSignatures.get().map { appSignature ->
                 Utils.encodeSecret(
                     secretKey = appSignature.replace(":", EMPTY_STRING),
-                    obfuscationKey = secretsVaultExtension.obfuscationKey.get(),
+                    obfuscationKey = obfuscationKey.get(),
                 )
             }.let { encodedAppSignatures ->
                 codeGenerator.getAppSignatureCheck(encodedAppSignatures)
             }
-            project.file("${pluginSourceFolder.get().path}/cpp/common/").listFiles()?.forEach { file ->
+            pluginSourceFolder.dir("cpp/common/").get().asFile.listFiles()?.forEach { file ->
                 var text = file.readText(Charset.defaultCharset())
                 if (file.name == SECRETS_UTIL_CPP_FILE_NAME) {
-                    text = text.replace(OBFUSCATION_KEY_PLACEHOLDER, secretsVaultExtension.obfuscationKey.get())
+                    text = text.replace(OBFUSCATION_KEY_PLACEHOLDER, obfuscationKey.get())
                         .replace(CHECK_APP_SIGNATURE_PLACEHOLDER, appSignaturesCodeBlock)
                 }
                 val destination = getCppDestination(
@@ -302,7 +331,7 @@ internal abstract class KeepSecretsTask : DefaultTask() {
      */
     private fun copySecretCppFile(sourceSet: SecretsSourceSet) {
         runCatching {
-            val secretsFile = project.file("${pluginSourceFolder.get().path}/cpp/$SECRETS_CPP_FILE_NAME")
+            val secretsFile = pluginSourceFolder.dir("cpp/$SECRETS_CPP_FILE_NAME").get().asFile
             val text = secretsFile.readText(Charset.defaultCharset()).replace(
                 oldValue = COMMON_FOLDER_PATH_PREFIX_PLACEHOLDER,
                 newValue = if (sourceSet == SecretsSourceSet(MAIN_SOURCE_SET_NAME)) {
@@ -328,11 +357,11 @@ internal abstract class KeepSecretsTask : DefaultTask() {
     private fun copyCMakeListsFile(sourceSets: Set<SecretsSourceSet>) {
         runCatching {
             val mainSourceSet = SecretsSourceSet(MAIN_SOURCE_SET_NAME)
-            val file = project.file("${pluginSourceFolder.get().path}/cpp/$C_MAKE_LISTS_FILE_NAME")
+            val file = pluginSourceFolder.dir("cpp/$C_MAKE_LISTS_FILE_NAME").get().asFile
             val textBuilder = StringBuilder(
                 file.readText(Charset.defaultCharset())
-                    .replace(PROJECT_NAME_PLACEHOLDER, cMakeExtension.projectName.get())
-                    .replace(CMAKE_VERSION_PLACEHOLDER, cMakeExtension.version.get())
+                    .replace(PROJECT_NAME_PLACEHOLDER, cmakeProjectName.get())
+                    .replace(CMAKE_VERSION_PLACEHOLDER, cmakeVersion.get())
             )
             if (sourceSets.contains(mainSourceSet)) {
                 val fileName = getKotlinSecretsFileName(mainSourceSet).removeSuffix(KOTLIN_FILE_NAME_SUFFIX)
@@ -378,18 +407,18 @@ internal abstract class KeepSecretsTask : DefaultTask() {
 
     private fun copyKotlinFile(sourceSet: SecretsSourceSet) {
         runCatching {
-            val kotlinFileName = if (secretsVaultExtension.makeInjectable.get()) {
+            val kotlinFileName = if (makeInjectable.get()) {
                 TEMP_KOTLIN_INJECTABLE_FILE_NAME
             } else {
                 TEMP_KOTLIN_NOT_INJECTABLE_FILE_NAME
             }
-            val kotlinFiles = project.file("${pluginSourceFolder.get().path}/kotlin/").listFiles()
+            val kotlinFiles = pluginSourceFolder.dir("kotlin").get().asFile.listFiles()
             val kotlinFile = kotlinFiles?.find { file ->
                 file.name == kotlinFileName
             } ?: throw IOException("Kotlin file that will be copied not found")
             var text = kotlinFile.readText(Charset.defaultCharset())
             val fileName = getKotlinSecretsFileName(sourceSet)
-            text = text.replace(PACKAGE_PLACEHOLDER, packageName)
+            text = text.replace(PACKAGE_PLACEHOLDER, packageName.get())
                 .replace(SECRETS_CLASS_NAME_PLACEHOLDER, fileName.removeSuffix(KOTLIN_FILE_NAME_SUFFIX))
             val destination = getKotlinDestination(
                 sourceSet = sourceSet,
@@ -480,13 +509,13 @@ internal abstract class KeepSecretsTask : DefaultTask() {
         var kotlinPackage = Utils.getKotlinFilePackage(secretsKotlin)
         if (kotlinPackage.isNullOrEmpty()) {
             logWarning("Empty package in $fileName")
-            kotlinPackage = packageName
+            kotlinPackage = packageName.get()
         }
 
         val secretsCpp = getCppDestination(sourceSet = sourceSet, fileName = SECRETS_CPP_FILE_NAME)
         secrets.forEach { secret ->
             val (key, value) = secret
-            val obfuscatedValue = Utils.encodeSecret(value, secretsVaultExtension.obfuscationKey.get())
+            val obfuscatedValue = Utils.encodeSecret(value, obfuscationKey.get())
             val cppText = secretsCpp.readText(Charset.defaultCharset())
             val keyName = "$JVM_NAME_PREFIX${secretKeyToIndexMap[key]}"
             if (cppText.contains(keyName)) {

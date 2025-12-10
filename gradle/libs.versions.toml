@@ -1,9 +1,10 @@
 [versions]
-kotlin = "1.8.21"
-androidGradlePlugin = "8.0.1"
+kotlin = "2.2.21"
+androidGradlePlugin = "8.13.1"
 gradlePublish = "1.2.0"
-detekt = "1.22.0"
+detekt = "1.23.8"
 kotlinxSerializationJson = "1.5.1"
+jvmTarget = "17"
 
 [libraries]
 # Android Gradle Api Plugin
@@ -17,7 +18,7 @@ detekt-formating = { group = "io.gitlab.arturbosch.detekt", name = "detekt-forma
 detekt-rules = { group = "io.gitlab.arturbosch.detekt", name = "detekt-rules", version.ref = "detekt" }
 
 # Sample App
-androidx-activityKtx = { module = "androidx.activity:activity-ktx", version = "1.7.2" }
+androidx-activityKtx = { module = "androidx.activity:activity-ktx", version = "1.12.0" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "androidGradlePlugin" }
@@ -28,4 +29,4 @@ gradle-publish = { id = "com.gradle.plugin-publish", version.ref = "gradlePublis
 detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
 
 [bundles]
-detekt = ["detekt.formating", "detekt.rules"]
+detekt = ["detekt-formating", "detekt-rules"]
